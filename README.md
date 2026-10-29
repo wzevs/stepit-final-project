@@ -1,7 +1,20 @@
 # StepIT Final Project: Courier Platform
 
 Logistics / courier service platform. Django + DRF backend, Android courier app,
-browser-based tracking page for recipients.
+and a browser site for shops, couriers, the company owner, and guests.
+
+## Main site
+
+Start the server, then open http://127.0.0.1:8000/.
+
+This is the front door. It joins the pages that already exist:
+
+- a service slider and the service list
+- guest tracking by tracking number
+- sign-in for a shop, a courier, and the courier-company owner
+
+Shop staff land on /dashboard/shipments/. Couriers land on /courier/shipments/. Company members (owner, dispatcher, or viewer) land on /manage/shipments/. A wrong role or a bad password does not sign the user in. The public tracking result shows the status, the address, and the public event history. It does not show the recipient phone.
+
 
 ## Stack
 
@@ -57,18 +70,6 @@ Interactive docs: http://127.0.0.1:8000/api/docs/
 
 Shops without an integration sign in at http://127.0.0.1:8000/dashboard/login/ and add parcels by hand.
 The dashboard account needs a ClientMembership; API access also requires Client.api_enabled.
-
-## Homepage
-
-The public site is http://127.0.0.1:8000/.
-It has a service slider, the service list, guest tracking by tracking number, and three sign-in forms:
-
-- Shop staff land on /dashboard/shipments/.
-- Couriers land on /courier/shipments/.
-- Company members (owner, dispatcher, or viewer) land on /manage/shipments/.
-
-A wrong role or a bad password does not sign the user in.
-The public result shows the status, the address, and the public event history. It does not show the recipient phone.
 
 ## Manager panel
 
