@@ -6,4 +6,4 @@ class IntegrationsConfig(AppConfig):
     name = "apps.integrations"
 
     def ready(self):
-        from . import receivers  # noqa: F401
+        from . import authentication, receivers, schema  # noqa: F401

@@ -1,0 +1,20 @@
+{% extends "dashboard/base.html" %}
+{% block title %}შესვლა{% endblock %}
+{% block content %}
+  <div class="card" style="max-width: 420px; margin: 40px auto;">
+    <h1>შესვლა</h1>
+    <form method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<ul class="errorlist">{{ form.non_field_errors }}</ul>{% endif %}
+      <div class="field" style="margin-bottom: 12px;">
+        <label for="id_username">ელფოსტა</label>
+        <input type="email" name="username" id="id_username" autofocus required>
+      </div>
+      <div class="field" style="margin-bottom: 16px;">
+        <label for="id_password">პაროლი</label>
+        <input type="password" name="password" id="id_password" required>
+      </div>
+      <button type="submit">შესვლა</button>
+    </form>
+  </div>
+{% endblock %}

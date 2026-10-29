@@ -47,3 +47,12 @@ python manage.py runserver
 ruff check .
 pytest
 ```
+
+## Shop access
+
+Shops with their own software use POST /api/v1/client/shipments/ and the X-API-Key header.
+Sending the same external_id again returns the existing shipment (HTTP 200) instead of a duplicate.
+Interactive docs: http://127.0.0.1:8000/api/docs/
+
+Shops without an integration sign in at http://127.0.0.1:8000/dashboard/login/ and add parcels by hand.
+The dashboard account needs a ClientMembership; API access also requires Client.api_enabled.

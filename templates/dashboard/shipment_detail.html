@@ -1,0 +1,33 @@
+{% extends "dashboard/base.html" %}
+{% load dashboard_tags %}
+{% block title %}{{ shipment.tracking_number }}{% endblock %}
+{% block content %}
+  <p><a href="{% url 'dashboard:shipment-list' %}">ამანათები</a></p>
+  <div class="card">
+    <h1>{{ shipment.tracking_number }}</h1>
+    <p><span class="badge">{{ shipment.status|ka:status_ka }}</span></p>
+    {% if shipment.external_id %}<p class="muted">შეკვეთა: {{ shipment.external_id }}</p>{% endif %}
+    <p><strong>მიმღები:</strong> {{ shipment.recipient_name }}, {{ shipment.recipient_phone }}
+      {% if shipment.recipient_email %} · {{ shipment.recipient_email }}{% endif %}</p>
+    <p><strong>საიდან:</strong> {{ shipment.pickup_address }}</p>
+    <p><strong>სად:</strong> {{ shipment.delivery_address }}
+      {% if shipment.delivery_address.line2 %} · {{ shipment.delivery_address.line2 }}{% endif %}
+      {% if shipment.delivery_address.notes %} · {{ shipment.delivery_address.notes }}{% endif %}</p>
+    {% if shipment.description %}<p><strong>აღწერა:</strong> {{ shipment.description }}</p>{% endif %}
+    {% if shipment.failure_reason %}<p><strong>ვერ ჩაბარდა:</strong> {{ shipment.failure_reason }}</p>{% endif %}
+  </div>
+  {% if events %}
+    <h2 style="font-size: 16px; margin-top: 20px;">ისტორია</h2>
+    <div class="card">
+      <table>
+        {% for event in events %}
+          <tr>
+            <td class="muted">{{ event.created_at|date:"d.m.Y H:i" }}</td>
+            <td>{{ event.to_status|ka:status_ka }}</td>
+            <td>{{ event.note }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+  {% endif %}
+{% endblock %}

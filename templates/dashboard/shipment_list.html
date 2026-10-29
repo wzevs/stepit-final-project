@@ -1,0 +1,49 @@
+{% extends "dashboard/base.html" %}
+{% load dashboard_tags %}
+{% block title %}ამანათები{% endblock %}
+{% block content %}
+  <div class="row" style="justify-content: space-between;">
+    <h1>ამანათები</h1>
+    <a class="button" href="{% url 'dashboard:shipment-create' %}">ახალი ამანათი</a>
+  </div>
+  <form class="toolbar" method="get">
+    <input type="search" name="q" value="{{ request.GET.q }}" placeholder="ტრეკინგი ან ტელეფონი">
+    <select name="status">
+      <option value="">ყველა სტატუსი</option>
+      {% for value, label in status_ka.items %}
+        <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">ძიება</button>
+  </form>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>ტრეკინგი</th><th>სტატუსი</th><th>მიმღები</th><th>მისამართი</th><th>თარიღი</th></tr>
+      </thead>
+      <tbody>
+        {% for shipment in shipments %}
+          <tr>
+            <td>
+              <a href="{% url 'dashboard:shipment-detail' shipment.pk %}">{{ shipment.tracking_number }}</a>
+              {% if shipment.external_id %}<div class="muted">{{ shipment.external_id }}</div>{% endif %}
+            </td>
+            <td><span class="badge">{{ shipment.status|ka:status_ka }}</span></td>
+            <td>{{ shipment.recipient_name }}<div class="muted">{{ shipment.recipient_phone }}</div></td>
+            <td>{{ shipment.delivery_address.city }}, {{ shipment.delivery_address.line1 }}</td>
+            <td class="muted">{{ shipment.created_at|date:"d.m.Y H:i" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="muted">ამანათი ჯერ არ არის.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if is_paginated %}
+      <p class="muted">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">წინა</a>{% endif %}
+        გვერდი {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">შემდეგი</a>{% endif %}
+      </p>
+    {% endif %}
+  </div>
+{% endblock %}

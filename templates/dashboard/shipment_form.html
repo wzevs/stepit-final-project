@@ -1,0 +1,46 @@
+{% extends "dashboard/base.html" %}
+{% block title %}ახალი ამანათი{% endblock %}
+{% block content %}
+  <h1>ახალი ამანათი</h1>
+  <form method="post" class="card">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<ul class="errorlist">{{ form.non_field_errors }}</ul>{% endif %}
+    <div class="row">
+      <div class="field">{{ form.external_id.label_tag }}{{ form.external_id }}{{ form.external_id.errors }}</div>
+      <div class="field">{{ form.scheduled_delivery_date.label_tag }}{{ form.scheduled_delivery_date }}{{ form.scheduled_delivery_date.errors }}</div>
+    </div>
+    <h2 style="font-size: 16px;">მიმღები</h2>
+    <div class="row">
+      <div class="field">{{ form.recipient_name.label_tag }}{{ form.recipient_name }}{{ form.recipient_name.errors }}</div>
+      <div class="field">{{ form.recipient_phone.label_tag }}{{ form.recipient_phone }}{{ form.recipient_phone.errors }}</div>
+      <div class="field">{{ form.recipient_email.label_tag }}{{ form.recipient_email }}{{ form.recipient_email.errors }}</div>
+    </div>
+    <h2 style="font-size: 16px;">საიდან</h2>
+    <div class="row">
+      <div class="field">{{ form.pickup_point.label_tag }}{{ form.pickup_point }}{{ form.pickup_point.errors }}</div>
+      <div class="field">{{ form.pickup_city.label_tag }}{{ form.pickup_city }}{{ form.pickup_city.errors }}</div>
+      <div class="field">{{ form.pickup_line1.label_tag }}{{ form.pickup_line1 }}{{ form.pickup_line1.errors }}</div>
+    </div>
+    <h2 style="font-size: 16px;">სად</h2>
+    <div class="row">
+      <div class="field">{{ form.delivery_city.label_tag }}{{ form.delivery_city }}{{ form.delivery_city.errors }}</div>
+      <div class="field">{{ form.delivery_line1.label_tag }}{{ form.delivery_line1 }}{{ form.delivery_line1.errors }}</div>
+      <div class="field">{{ form.delivery_line2.label_tag }}{{ form.delivery_line2 }}{{ form.delivery_line2.errors }}</div>
+    </div>
+    <div class="field" style="margin-bottom: 12px;">{{ form.delivery_notes.label_tag }}{{ form.delivery_notes }}{{ form.delivery_notes.errors }}</div>
+    <h2 style="font-size: 16px;">ამანათი</h2>
+    <div class="row">
+      <div class="field">{{ form.description.label_tag }}{{ form.description }}{{ form.description.errors }}</div>
+      <div class="field">{{ form.weight_kg.label_tag }}{{ form.weight_kg }}{{ form.weight_kg.errors }}</div>
+      <div class="field">{{ form.payment_type.label_tag }}{{ form.payment_type }}{{ form.payment_type.errors }}</div>
+      <div class="field">{{ form.cod_amount.label_tag }}{{ form.cod_amount }}{{ form.cod_amount.errors }}</div>
+    </div>
+    <div class="field" style="margin-bottom: 12px;">
+      <label>{{ form.is_fragile }} {{ form.is_fragile.label }}</label>
+      {{ form.is_fragile.errors }}
+    </div>
+    <div class="field" style="margin-bottom: 16px;">{{ form.notes.label_tag }}{{ form.notes }}{{ form.notes.errors }}</div>
+    <button type="submit">შენახვა</button>
+    <a href="{% url 'dashboard:shipment-list' %}" style="margin-left: 12px;">გაუქმება</a>
+  </form>
+{% endblock %}

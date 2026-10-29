@@ -146,6 +146,7 @@ REST_FRAMEWORK = {
         "anon": "60/min",
         "public_tracking": "30/min",
         "courier_location": "30/min",
+        "client_api": "300/min",
     },
 }
 
@@ -174,6 +175,10 @@ TRACKING_TOKEN_TTL_DAYS = env("TRACKING_TOKEN_TTL_DAYS")
 # After a shipment reaches a final status its tracking links stay valid this long.
 TRACKING_TOKEN_GRACE_HOURS = env("TRACKING_TOKEN_GRACE_HOURS")
 GOOGLE_MAPS_API_KEY = env("GOOGLE_MAPS_API_KEY", default="")
+
+LOGIN_URL = "/dashboard/login/"
+LOGIN_REDIRECT_URL = "/dashboard/shipments/"
+LOGOUT_REDIRECT_URL = "/dashboard/login/"
 
 # ---------------------------------------------------------------------------
 # Logging
