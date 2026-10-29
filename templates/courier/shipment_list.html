@@ -1,0 +1,26 @@
+{% extends "courier/base.html" %}
+{% load dashboard_tags %}
+{% block title %}ჩემი ამანათები{% endblock %}
+{% block content %}
+  <h1>ჩემი ამანათები</h1>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>ტრეკინგი</th><th>სტატუსი</th><th>მაღაზია</th><th>მიმღები</th><th>მისამართი</th></tr>
+      </thead>
+      <tbody>
+        {% for shipment in shipments %}
+          <tr>
+            <td>{{ shipment.tracking_number }}</td>
+            <td><span class="badge">{{ shipment.status|ka:status_ka }}</span></td>
+            <td>{{ shipment.client.name }}</td>
+            <td>{{ shipment.recipient_name }}<div class="muted">{{ shipment.recipient_phone }}</div></td>
+            <td>{{ shipment.delivery_address.city }}, {{ shipment.delivery_address.line1 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="muted">ამანათი ჯერ არ გაქვთ.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

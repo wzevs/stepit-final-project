@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}მენეჯერი{% endblock %} · კურიერი</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 15px/1.45 "Segoe UI", sans-serif; background: #f3f4f6; color: #1c1e21; }
+    a { color: #0f6b4c; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    header { background: #143d32; color: #fff; padding: 14px 24px; display: flex; gap: 16px; align-items: center; }
+    header a { color: #fff; }
+    header nav { display: flex; gap: 14px; }
+    header .spacer { flex: 1; }
+    header form { margin: 0; }
+    header select, header button { font: inherit; }
+    main { max-width: 1040px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 22px; margin: 0 0 16px; }
+    .card { background: #fff; border: 1px solid #e3e5e8; border-radius: 8px; padding: 16px 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #eee; vertical-align: top; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #667; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+    label { display: block; font-size: 13px; margin-bottom: 4px; }
+    input, select, textarea { font: inherit; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; width: 100%; background: #fff; }
+    .field { flex: 1 1 220px; }
+    button, .button { background: #0f6b4c; color: #fff; border: 0; border-radius: 6px; padding: 9px 16px; cursor: pointer; font: inherit; display: inline-block; }
+    button.ghost, .button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.4); }
+    .errorlist { color: #9b2335; font-size: 13px; margin: 4px 0 0; padding: 0; list-style: none; }
+    .messages { list-style: none; padding: 0; }
+    .messages li { background: #e7f5ee; border: 1px solid #b7e0cb; padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; background: #eef1f4; font-size: 13px; }
+    .muted { color: #667; }
+    .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .toolbar input, .toolbar select { width: auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>მენეჯერი</strong>
+    {% if company %}<span>{{ company.name }}</span>{% endif %}
+    {% if memberships|length > 1 %}
+      <form method="post" action="{% url 'manage:switch-company' %}">
+        {% csrf_token %}
+        <select name="company_id" onchange="this.form.submit()">
+          {% for m in memberships %}
+            <option value="{{ m.company_id }}" {% if m.company_id == company.id %}selected{% endif %}>{{ m.company.name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    {% endif %}
+    <span class="spacer"></span>
+    {% if user.is_authenticated and company %}
+      <nav>
+        <a href="{% url 'manage:shipment-list' %}">ამანათები</a>
+        <a href="{% url 'manage:client-list' %}">მაღაზიები</a>
+        <a href="{% url 'manage:courier-list' %}">კურიერები</a>
+      </nav>
+      <form method="post" action="{% url 'manage:logout' %}">
+        {% csrf_token %}
+        <button class="ghost" type="submit">გასვლა</button>
+      </form>
+    {% endif %}
+  </header>
+  <main>
+    {% if messages %}
+      <ul class="messages">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

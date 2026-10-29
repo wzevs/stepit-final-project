@@ -38,6 +38,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+- Homepage: http://127.0.0.1:8000/
 - Admin: http://127.0.0.1:8000/admin/
 - API docs: http://127.0.0.1:8000/api/docs/
 
@@ -56,3 +57,26 @@ Interactive docs: http://127.0.0.1:8000/api/docs/
 
 Shops without an integration sign in at http://127.0.0.1:8000/dashboard/login/ and add parcels by hand.
 The dashboard account needs a ClientMembership; API access also requires Client.api_enabled.
+
+## Homepage
+
+The public site is http://127.0.0.1:8000/.
+It has a service slider, the service list, guest tracking by tracking number, and three sign-in forms:
+
+- Shop staff land on /dashboard/shipments/.
+- Couriers land on /courier/shipments/.
+- Company members (owner, dispatcher, or viewer) land on /manage/shipments/.
+
+A wrong role or a bad password does not sign the user in.
+The public result shows the status, the address, and the public event history. It does not show the recipient phone.
+
+## Manager panel
+
+Courier-company staff can also sign in at http://127.0.0.1:8000/manage/login/.
+They need a CompanyMembership. Owners and dispatchers register shops and couriers and assign parcels.
+Viewers can look, but cannot change anything.
+
+## Courier list
+
+After signing in, a courier sees their parcels at http://127.0.0.1:8000/courier/shipments/.
+The list is read-only. Status changes and live location stay on the Android app.

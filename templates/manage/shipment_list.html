@@ -1,0 +1,42 @@
+{% extends "manage/base.html" %}
+{% load dashboard_tags %}
+{% block title %}ამანათები{% endblock %}
+{% block content %}
+  <h1>ამანათები</h1>
+  <form class="toolbar" method="get">
+    <input type="search" name="q" value="{{ request.GET.q }}" placeholder="ტრეკინგი, მაღაზია, ტელეფონი">
+    <select name="status">
+      <option value="">ყველა სტატუსი</option>
+      {% for value, label in status_ka.items %}
+        <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="client">
+      <option value="">ყველა მაღაზია</option>
+      {% for shop in clients %}
+        <option value="{{ shop.pk }}" {% if request.GET.client == shop.pk|stringformat:"s" %}selected{% endif %}>{{ shop.name }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">ძიება</button>
+  </form>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>ტრეკინგი</th><th>სტატუსი</th><th>მაღაზია</th><th>მიმღები</th><th>კურიერი</th></tr>
+      </thead>
+      <tbody>
+        {% for shipment in shipments %}
+          <tr>
+            <td><a href="{% url 'manage:shipment-detail' shipment.pk %}">{{ shipment.tracking_number }}</a></td>
+            <td><span class="badge">{{ shipment.status|ka:status_ka }}</span></td>
+            <td>{{ shipment.client.name }}</td>
+            <td>{{ shipment.recipient_name }}<div class="muted">{{ shipment.recipient_phone }}</div></td>
+            <td>{% if shipment.courier %}{{ shipment.courier.user.get_full_name|default:shipment.courier.user.email }}{% else %}<span class="muted">არ არის</span>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="muted">ამანათი ჯერ არ არის.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "manage/base.html" %}
+{% load dashboard_tags %}
+{% block title %}{{ shipment.tracking_number }}{% endblock %}
+{% block content %}
+  <p><a href="{% url 'manage:shipment-list' %}">ამანათები</a></p>
+  <div class="card">
+    <h1>{{ shipment.tracking_number }}</h1>
+    <p><span class="badge">{{ shipment.status|ka:status_ka }}</span></p>
+    <p><strong>მაღაზია:</strong> {{ shipment.client.name }}</p>
+    <p><strong>მიმღები:</strong> {{ shipment.recipient_name }}, {{ shipment.recipient_phone }}</p>
+    <p><strong>საიდან:</strong> {{ shipment.pickup_address }}</p>
+    <p><strong>სად:</strong> {{ shipment.delivery_address }}</p>
+    <p><strong>კურიერი:</strong>
+      {% if shipment.courier %}{{ shipment.courier.user.get_full_name|default:shipment.courier.user.email }}{% else %}არ არის{% endif %}
+    </p>
+  </div>
+  {% if can_assign or can_unassign %}
+    <h2 style="font-size: 16px;">კურიერის დანიშვნა</h2>
+    <form method="post" class="card">
+      {% csrf_token %}
+      <div class="row">
+        <div class="field">
+          <label for="id_courier">კურიერი</label>
+          <select name="courier_id" id="id_courier">
+            <option value="">მოხსნა</option>
+            {% for courier in couriers %}
+              <option value="{{ courier.pk }}" {% if shipment.courier_id == courier.pk %}selected{% endif %}>
+                {{ courier.user.get_full_name|default:courier.user.email }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="id_note">შენიშვნა</label>
+          <input type="text" name="note" id="id_note">
+        </div>
+      </div>
+      <button type="submit">შენახვა</button>
+    </form>
+  {% endif %}
+  {% if events %}
+    <h2 style="font-size: 16px;">ისტორია</h2>
+    <div class="card">
+      <table>
+        {% for event in events %}
+          <tr>
+            <td class="muted">{{ event.created_at|date:"d.m.Y H:i" }}</td>
+            <td>{% if event.to_status %}{{ event.to_status|ka:status_ka }}{% else %}{{ event.get_kind_display }}{% endif %}</td>
+            <td>{{ event.note }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+  {% endif %}
+{% endblock %}

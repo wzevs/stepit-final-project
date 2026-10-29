@@ -1,0 +1,23 @@
+{% extends "manage/base.html" %}
+{% block title %}ახალი მაღაზია{% endblock %}
+{% block content %}
+  <h1>ახალი მაღაზია</h1>
+  <form method="post" class="card">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<ul class="errorlist">{{ form.non_field_errors }}</ul>{% endif %}
+    <div class="row">
+      <div class="field">{{ form.name.label_tag }}{{ form.name }}{{ form.name.errors }}</div>
+      <div class="field">{{ form.code.label_tag }}{{ form.code }}{{ form.code.errors }}</div>
+    </div>
+    <div class="row">
+      <div class="field">{{ form.contact_name.label_tag }}{{ form.contact_name }}{{ form.contact_name.errors }}</div>
+      <div class="field">{{ form.contact_phone.label_tag }}{{ form.contact_phone }}{{ form.contact_phone.errors }}</div>
+      <div class="field">{{ form.contact_email.label_tag }}{{ form.contact_email }}{{ form.contact_email.errors }}</div>
+    </div>
+    <div class="field" style="margin-bottom: 16px;">
+      <label>{{ form.api_enabled }} {{ form.api_enabled.label }}</label>
+    </div>
+    <button type="submit">შენახვა</button>
+    <a href="{% url 'manage:client-list' %}" style="margin-left: 12px;">გაუქმება</a>
+  </form>
+{% endblock %}

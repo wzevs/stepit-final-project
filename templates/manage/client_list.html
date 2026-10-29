@@ -1,0 +1,25 @@
+{% extends "manage/base.html" %}
+{% block title %}მაღაზიები{% endblock %}
+{% block content %}
+  <div class="row" style="justify-content: space-between;">
+    <h1>მაღაზიები</h1>
+    {% if can_manage %}<a class="button" href="{% url 'manage:client-create' %}">ახალი მაღაზია</a>{% endif %}
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>სახელი</th><th>კოდი</th><th>ტელეფონი</th><th>API</th></tr></thead>
+      <tbody>
+        {% for shop in clients %}
+          <tr>
+            <td>{{ shop.name }}</td>
+            <td>{{ shop.code }}</td>
+            <td>{{ shop.contact_phone }}</td>
+            <td>{% if shop.api_enabled %}ჩართული{% else %}<span class="muted">გამორთული</span>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="muted">მაღაზია ჯერ არ არის.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

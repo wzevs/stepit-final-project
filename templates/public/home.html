@@ -1,0 +1,202 @@
+{% load dashboard_tags %}
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>კურიერი</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 16px/1.5 "Segoe UI", sans-serif; color: #1c1e21; background: #f4f6f5; }
+    a { color: #0f6b4c; text-decoration: none; }
+    header { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; padding: 16px 8vw; background: #143d32; color: #fff; }
+    header strong { font-size: 18px; }
+    header nav { display: flex; gap: 16px; margin-left: auto; }
+    header a { color: #fff; }
+    .slider { position: relative; height: 360px; overflow: hidden; background: #0e2e26; }
+    .slide { position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 48px 8vw 88px; color: #fff; opacity: 0; transition: opacity .45s ease; }
+    .slide.active { opacity: 1; }
+    .slide h1 { margin: 0 0 8px; font-size: 40px; max-width: 640px; }
+    .slide p { margin: 0; max-width: 520px; font-size: 18px; }
+    .s1 { background: linear-gradient(120deg, #143d32, #1f6a52); }
+    .s2 { background: linear-gradient(120deg, #1b3a4b, #143d32); }
+    .s3 { background: linear-gradient(120deg, #2a3f34, #0f6b4c); }
+    .slider-nav { position: absolute; left: 8vw; bottom: 28px; display: flex; gap: 8px; z-index: 2; }
+    .slider-nav button, .arrows button { border: 0; background: rgba(255,255,255,.2); color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; }
+    .slider-nav button.active { background: #fff; color: #143d32; }
+    .arrows { position: absolute; right: 8vw; bottom: 28px; display: flex; gap: 8px; z-index: 2; }
+    .track { margin: -28px 8vw 0; position: relative; z-index: 3; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 8px 24px rgba(20,61,50,.12); }
+    .track form { display: flex; gap: 8px; }
+    .track input { flex: 1 1 auto; min-width: 0; font: inherit; padding: 12px 14px; border: 1px solid #d5dbd8; border-radius: 8px; }
+    .track button { flex: 0 0 auto; }
+    button.primary, .primary { background: #0f6b4c; color: #fff; border: 0; border-radius: 8px; padding: 12px 18px; font: inherit; cursor: pointer; }
+    section { padding: 56px 8vw; }
+    h2 { margin: 0 0 20px; font-size: 28px; }
+    .services { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .card { background: #fff; border: 1px solid #e3e8e5; border-radius: 12px; padding: 18px 20px; }
+    .card h3 { margin: 0 0 8px; font-size: 18px; }
+    .card p { margin: 0; color: #4d5853; }
+    .logins { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .logins form { display: grid; gap: 8px; }
+    label { font-size: 13px; }
+    input[type="email"], input[type="password"] { font: inherit; padding: 10px 12px; border: 1px solid #d5dbd8; border-radius: 8px; width: 100%; }
+    .messages { list-style: none; padding: 0; margin: 0 0 16px; }
+    .messages li { background: #fdecea; border: 1px solid #f5c2c0; color: #8a1f2b; border-radius: 8px; padding: 10px 12px; }
+    .result { margin-top: 16px; }
+    .badge { display: inline-block; background: #e7f3ee; color: #0f6b4c; border-radius: 99px; padding: 4px 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 8px 0; border-bottom: 1px solid #eee; }
+    .muted { color: #66706c; }
+    footer { padding: 24px 8vw 40px; color: #66706c; }
+    @media (max-width: 800px) {
+      .services, .logins { grid-template-columns: 1fr; }
+      .slide h1 { font-size: 30px; }
+      .track form { flex-direction: column; }
+      header { padding: 16px 20px; }
+      section, .track, footer { margin-left: 20px; margin-right: 20px; }
+      .track { margin-top: -28px; }
+      section { padding: 40px 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>კურიერი</strong>
+    <nav>
+      <a href="#services">სერვისები</a>
+      <a href="#tracking">ტრეკინგი</a>
+      <a href="#login">შესვლა</a>
+    </nav>
+  </header>
+
+  <div class="slider" id="slider">
+    <div class="slide s1 active">
+      <div>
+        <h1>ამანათი კარამდე</h1>
+        <p>მაღაზიიდან მიმღებამდე, სტატუსით და კურიერის დანიშვნით.</p>
+      </div>
+    </div>
+    <div class="slide s2">
+      <div>
+        <h1>მაღაზიის კაბინეტი და API</h1>
+        <p>შეკვეთა ხელით ან თქვენი პროგრამიდან. ერთი და იგივე ამანათი ორჯერ არ შეიქმნება.</p>
+      </div>
+    </div>
+    <div class="slide s3">
+      <div>
+        <h1>მფლობელი ხედავს მთელ დღეს</h1>
+        <p>მაღაზიები, კურიერები და ჩაბარებული შეკვეთები ერთ პანელში.</p>
+      </div>
+    </div>
+    <div class="slider-nav" id="dots"></div>
+    <div class="arrows">
+      <button type="button" id="prev" aria-label="წინა">‹</button>
+      <button type="button" id="next" aria-label="შემდეგი">›</button>
+    </div>
+  </div>
+
+  <div class="track" id="tracking">
+    <form method="get" action="/#tracking">
+      <input type="search" name="q" value="{{ query }}" placeholder="ტრეკინგის ნომერი, მაგ. GLX-7K2M9Q" aria-label="ტრეკინგის ნომერი">
+      <button class="primary" type="submit">ძებნა</button>
+    </form>
+    {% if searched %}
+      <div class="result">
+        {% if shipment %}
+          <p><strong>{{ shipment.tracking_number }}</strong> <span class="badge">{{ shipment.status|ka:status_ka }}</span></p>
+          <p>{{ shipment.delivery_address.city }}, {{ shipment.delivery_address.line1 }}</p>
+          {% if shipment.is_live_trackable and shipment.courier.last_latitude %}
+            <p><a href="https://www.google.com/maps?q={{ shipment.courier.last_latitude }},{{ shipment.courier.last_longitude }}" target="_blank" rel="noopener">კურიერი რუკაზე</a></p>
+          {% endif %}
+          {% if events %}
+            <table>
+              {% for event in events %}
+                <tr>
+                  <td class="muted">{{ event.created_at|date:"d.m.Y H:i" }}</td>
+                  <td>{% if event.to_status %}{{ event.to_status|ka:status_ka }}{% else %}{{ event.get_kind_display }}{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </table>
+          {% endif %}
+        {% else %}
+          <p>ვერ მოიძებნა. შეამოწმეთ ნომერი.</p>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+
+  <section id="services">
+    <h2>სერვისები</h2>
+    <div class="services">
+      <article class="card"><h3>ქალაქში მიწოდება</h3><p>აღებიდან ჩაბარებამდე, სტატუსის ისტორიით.</p></article>
+      <article class="card"><h3>თანხა ადგილზე</h3><p>მიმღები იხდის კურიერთან. თანხა შეკვეთაზეა მიბმული.</p></article>
+      <article class="card"><h3>მაღაზიის კაბინეტი</h3><p>შეკვეთის ხელით დამატება, სია და ტრეკინგის ნომერი.</p></article>
+      <article class="card"><h3>API მაღაზიის პროგრამისთვის</h3><p>გასაღებით. იგივე შეკვეთის ნომერი მეორედ აღარ იქმნება.</p></article>
+      <article class="card"><h3>კურიერის სამუშაო დღე</h3><p>დანიშნული და ჩაბარებული ამანათები კურიერის ანგარიშში.</p></article>
+      <article class="card"><h3>სტუმრის ტრეკინგი</h3><p>შესვლის გარეშე, მხოლოდ ტრეკინგის ნომრით.</p></article>
+    </div>
+  </section>
+
+  <section id="login">
+    <h2>შესვლა</h2>
+    {% if messages %}
+      <ul class="messages">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+    {% endif %}
+    <div class="logins">
+      <form class="card" method="post" action="{% url 'gate-login' %}">
+        {% csrf_token %}
+        <h3>მაღაზია</h3>
+        <input type="hidden" name="role" value="shop">
+        <label for="shop-email">ელფოსტა</label>
+        <input id="shop-email" type="email" name="username" required autocomplete="username">
+        <label for="shop-password">პაროლი</label>
+        <input id="shop-password" type="password" name="password" required autocomplete="current-password">
+        <button class="primary" type="submit">შესვლა</button>
+      </form>
+      <form class="card" method="post" action="{% url 'gate-login' %}">
+        {% csrf_token %}
+        <h3>კურიერი</h3>
+        <input type="hidden" name="role" value="courier">
+        <label for="courier-email">ელფოსტა</label>
+        <input id="courier-email" type="email" name="username" required autocomplete="username">
+        <label for="courier-password">პაროლი</label>
+        <input id="courier-password" type="password" name="password" required autocomplete="current-password">
+        <button class="primary" type="submit">შესვლა</button>
+      </form>
+      <form class="card" method="post" action="{% url 'gate-login' %}">
+        {% csrf_token %}
+        <h3>მფლობელი</h3>
+        <input type="hidden" name="role" value="owner">
+        <label for="owner-email">ელფოსტა</label>
+        <input id="owner-email" type="email" name="username" required autocomplete="username">
+        <label for="owner-password">პაროლი</label>
+        <input id="owner-password" type="password" name="password" required autocomplete="current-password">
+        <button class="primary" type="submit">შესვლა</button>
+      </form>
+    </div>
+  </section>
+
+  <footer>კურიერი · მაღაზია, კურიერი და მფლობელი ერთ საიტზე.</footer>
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    const dots = document.getElementById("dots");
+    let index = 0;
+    slides.forEach((_, i) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("aria-label", "სლაიდი " + (i + 1));
+      button.addEventListener("click", () => show(i));
+      dots.appendChild(button);
+    });
+    function show(next) {
+      index = (next + slides.length) % slides.length;
+      slides.forEach((slide, i) => slide.classList.toggle("active", i === index));
+      Array.from(dots.children).forEach((dot, i) => dot.classList.toggle("active", i === index));
+    }
+    document.getElementById("prev").addEventListener("click", () => show(index - 1));
+    document.getElementById("next").addEventListener("click", () => show(index + 1));
+    show(0);
+    setInterval(() => show(index + 1), 6000);
+  </script>
+</body>
+</html>

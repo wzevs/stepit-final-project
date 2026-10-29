@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}კურიერი{% endblock %}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 15px/1.45 "Segoe UI", sans-serif; background: #f3f4f6; color: #1c1e21; }
+    a { color: #0f6b4c; text-decoration: none; }
+    header { background: #143d32; color: #fff; padding: 14px 24px; display: flex; gap: 16px; align-items: center; }
+    header a, header button { color: #fff; }
+    header .spacer { flex: 1; }
+    header form { margin: 0; }
+    button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.4); border-radius: 6px; padding: 8px 14px; cursor: pointer; font: inherit; }
+    main { max-width: 880px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 22px; margin: 0 0 16px; }
+    .card { background: #fff; border: 1px solid #e3e5e8; border-radius: 8px; padding: 16px 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #eee; }
+    th { font-size: 12px; color: #667; text-transform: uppercase; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; background: #eef1f4; }
+    .muted { color: #667; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>კურიერი</strong>
+    {% if courier %}<span>{{ courier.user.get_full_name|default:courier.user.email }}</span>{% endif %}
+    <span class="spacer"></span>
+    <a href="/">მთავარი</a>
+    {% if user.is_authenticated %}
+      <form method="post" action="{% url 'courier:logout' %}">
+        {% csrf_token %}
+        <button class="ghost" type="submit">გასვლა</button>
+      </form>
+    {% endif %}
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{% extends "manage/base.html" %}
+{% block title %}კურიერები{% endblock %}
+{% block content %}
+  <div class="row" style="justify-content: space-between;">
+    <h1>კურიერები</h1>
+    {% if can_manage %}<a class="button" href="{% url 'manage:courier-create' %}">ახალი კურიერი</a>{% endif %}
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>სახელი</th><th>ელფოსტა</th><th>ტრანსპორტი</th><th>სტატუსი</th><th>ბოლო ლოკაცია</th></tr></thead>
+      <tbody>
+        {% for courier in couriers %}
+          <tr>
+            <td>{{ courier.user.get_full_name|default:"—" }}</td>
+            <td>{{ courier.user.email }}</td>
+            <td>{{ courier.get_vehicle_type_display }}{% if courier.vehicle_plate %} · {{ courier.vehicle_plate }}{% endif %}</td>
+            <td>{{ courier.get_status_display }}</td>
+            <td class="muted">{% if courier.last_location_at %}{{ courier.last_location_at|date:"d.m.Y H:i" }}{% else %}არ არის{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="muted">კურიერი ჯერ არ არის.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
