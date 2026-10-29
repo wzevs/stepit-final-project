@@ -61,15 +61,21 @@ class TrackingToken(TimeStampedModel):
 
     @classmethod
     def issue(
-        cls, shipment: Shipment, ttl_days: int | None = None, sent_via: str = ""
+        cls,
+        shipment: Shipment,
+        ttl_days: int | None = None,
+        sent_via: str = "",
+        revoke_existing: bool = True,
     ) -> tuple["TrackingToken", str]:
         """
-        Revoke any active tokens for the shipment and create a new one.
-        Returns (token_obj, raw_token). The raw token exists only in this
-        return value; put it in the URL and never persist it.
+        Create a new token for the shipment. With revoke_existing (the default,
+        e.g. after the recipient's phone number was corrected) all previous
+        links stop working. Returns (token_obj, raw_token). The raw token
+        exists only in this return value; put it in the URL, never persist it.
         """
         ttl = ttl_days if ttl_days is not None else settings.TRACKING_TOKEN_TTL_DAYS
-        cls.objects.filter(shipment=shipment, revoked_at__isnull=True).update(revoked_at=timezone.now())
+        if revoke_existing:
+            cls.revoke_all(shipment)
         raw = secrets.token_urlsafe(32)
         obj = cls.objects.create(
             shipment=shipment,
@@ -78,6 +84,12 @@ class TrackingToken(TimeStampedModel):
             sent_via=sent_via,
         )
         return obj, raw
+
+    @classmethod
+    def revoke_all(cls, shipment: Shipment) -> int:
+        return cls.objects.filter(shipment=shipment, revoked_at__isnull=True).update(
+            revoked_at=timezone.now()
+        )
 
     @classmethod
     def resolve(cls, raw: str) -> "TrackingToken | None":

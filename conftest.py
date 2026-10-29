@@ -1,8 +1,10 @@
 import pytest
 
+from apps.accounts.models import User
 from apps.clients.models import Client
 from apps.companies.models import CourierCompany
 from apps.core.models import Address
+from apps.couriers.models import CourierProfile
 from apps.shipments.models import Shipment
 
 
@@ -31,3 +33,17 @@ def shipment(company, client_shop, address):
         recipient_name="Nino",
         recipient_phone="+995555000000",
     )
+
+
+@pytest.fixture
+def courier_factory(company):
+    def _make(*, email, company=company, **kwargs):
+        user = User.objects.create_user(email=email, password="pass", role=User.Role.COURIER)
+        return CourierProfile.objects.create(user=user, company=company, **kwargs)
+
+    return _make
+
+
+@pytest.fixture
+def courier(courier_factory):
+    return courier_factory(email="courier@example.com")

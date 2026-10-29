@@ -15,6 +15,7 @@ env = environ.Env(
     ALLOWED_HOSTS=(list, []),
     CORS_ALLOWED_ORIGINS=(list, []),
     TRACKING_TOKEN_TTL_DAYS=(int, 7),
+    TRACKING_TOKEN_GRACE_HOURS=(int, 24),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
@@ -168,8 +169,10 @@ CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 # ---------------------------------------------------------------------------
 # Project-specific
 # ---------------------------------------------------------------------------
-PUBLIC_HOST = env("PUBLIC_HOST", default="localhost:8000")
+PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", default="http://localhost:8000").rstrip("/")
 TRACKING_TOKEN_TTL_DAYS = env("TRACKING_TOKEN_TTL_DAYS")
+# After a shipment reaches a final status its tracking links stay valid this long.
+TRACKING_TOKEN_GRACE_HOURS = env("TRACKING_TOKEN_GRACE_HOURS")
 GOOGLE_MAPS_API_KEY = env("GOOGLE_MAPS_API_KEY", default="")
 
 # ---------------------------------------------------------------------------

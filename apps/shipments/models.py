@@ -163,6 +163,7 @@ class ShipmentEvent(TimeStampedModel):
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     is_public = models.BooleanField(default=True, help_text="Shown on the recipient tracking page")
+    data = models.JSONField(default=dict, blank=True, help_text="Structured details, e.g. courier ids")
 
     class Meta:
         ordering = ["created_at"]
