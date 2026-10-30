@@ -13,7 +13,7 @@ ROLES = {
         "denied": "ეს ანგარიში მაღაზიის არ არის.",
     },
     "courier": {
-        "target": "/courier/shipments/",
+        "target": "/courier/map/",
         "denied": "ეს ანგარიში კურიერის არ არის.",
     },
     "owner": {

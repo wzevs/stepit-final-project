@@ -6,6 +6,7 @@
   <title>{% block title %}მენეჯერი{% endblock %} · კურიერი</title>
   <style>
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body { margin: 0; font: 15px/1.45 "Segoe UI", sans-serif; background: #f3f4f6; color: #1c1e21; }
     a { color: #0f6b4c; text-decoration: none; }
     a:hover { text-decoration: underline; }
@@ -34,9 +35,26 @@
     .muted { color: #667; }
     .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
     .toolbar input, .toolbar select { width: auto; }
+    body.map-page { display: flex; flex-direction: column; }
+    body.map-page main { display: none; }
+    .map-wrap { flex: 1; display: flex; min-height: 0; }
+    #map { flex: 1; min-height: 280px; }
+    .panel { width: 340px; max-width: 100%; background: #fff; border-left: 1px solid #e3e5e8; overflow: auto; padding: 16px; }
+    .panel h2 { font-size: 16px; margin: 0 0 8px; }
+    .panel .hint { font-size: 13px; color: #667; margin: 0 0 12px; }
+    .panel .person { width: 100%; text-align: left; background: #fff; color: inherit; border: 1px solid #e3e5e8; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; font: inherit; }
+    .panel .person.selected { border-color: #0f6b4c; background: #e7f5ee; }
+    .panel .person.stale { opacity: .7; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #0f6b4c; margin-right: 6px; }
+    .dot.stale { background: #c4c8c6; }
+    @media (max-width: 800px) {
+      .map-wrap { flex-direction: column; }
+      .panel { width: 100%; max-height: 46vh; border-left: 0; border-top: 1px solid #e3e5e8; }
+    }
   </style>
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <header>
     <strong>მენეჯერი</strong>
     {% if company %}<span>{{ company.name }}</span>{% endif %}
@@ -53,6 +71,7 @@
     <span class="spacer"></span>
     {% if user.is_authenticated and company %}
       <nav>
+        <a href="{% url 'manage:live-map' %}">რუკა</a>
         <a href="{% url 'manage:shipment-list' %}">ამანათები</a>
         <a href="{% url 'manage:client-list' %}">მაღაზიები</a>
         <a href="{% url 'manage:courier-list' %}">კურიერები</a>
@@ -63,11 +82,13 @@
       </form>
     {% endif %}
   </header>
+  {% block content_wrap %}
   <main>
     {% if messages %}
       <ul class="messages">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
     {% endif %}
     {% block content %}{% endblock %}
   </main>
+  {% endblock %}
 </body>
 </html>

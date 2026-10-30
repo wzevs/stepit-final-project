@@ -1,7 +1,9 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LogoutView
 from django.shortcuts import render
-from django.views.generic import ListView
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.generic import ListView, TemplateView
 
 from apps.couriers.models import CourierProfile
 from apps.shipments.labels import STATUS_KA
@@ -27,6 +29,24 @@ class CourierMixin(LoginRequiredMixin):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["courier"] = self.courier
+        context["status_ka"] = STATUS_KA
+        return context
+
+
+class CourierMapView(TemplateView):
+    """
+    Public shell. Each browser tab authenticates with JWT in sessionStorage,
+    so three couriers can stay logged in at once without sharing a cookie.
+    """
+
+    template_name = "courier/map.html"
+
+    @method_decorator(ensure_csrf_cookie)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
         context["status_ka"] = STATUS_KA
         return context
 

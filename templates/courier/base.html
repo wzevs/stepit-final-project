@@ -6,12 +6,15 @@
   <title>{% block title %}კურიერი{% endblock %}</title>
   <style>
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body { margin: 0; font: 15px/1.45 "Segoe UI", sans-serif; background: #f3f4f6; color: #1c1e21; }
     a { color: #0f6b4c; text-decoration: none; }
-    header { background: #143d32; color: #fff; padding: 14px 24px; display: flex; gap: 16px; align-items: center; }
+    header { background: #143d32; color: #fff; padding: 14px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
     header a, header button { color: #fff; }
     header .spacer { flex: 1; }
     header form { margin: 0; }
+    header nav { display: flex; gap: 14px; }
+    header nav a.active { text-decoration: underline; }
     button.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.4); border-radius: 6px; padding: 8px 14px; cursor: pointer; font: inherit; }
     main { max-width: 880px; margin: 24px auto; padding: 0 16px; }
     h1 { font-size: 22px; margin: 0 0 16px; }
@@ -21,21 +24,54 @@
     th { font-size: 12px; color: #667; text-transform: uppercase; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; background: #eef1f4; }
     .muted { color: #667; }
+    body.map-page { display: flex; flex-direction: column; }
+    body.map-page main { display: none; }
+    .map-wrap { flex: 1; display: flex; min-height: 0; }
+    #map { flex: 1; min-height: 280px; }
+    .panel { width: 360px; max-width: 100%; background: #fff; border-left: 1px solid #e3e5e8; overflow: auto; padding: 16px; }
+    .panel h2 { font-size: 16px; margin: 0 0 8px; }
+    .panel .hint { font-size: 13px; color: #667; margin: 0 0 12px; }
+    .panel .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .panel button, .actions button { font: inherit; cursor: pointer; border: 0; border-radius: 6px; padding: 8px 12px; background: #0f6b4c; color: #fff; }
+    .panel button.secondary, .actions button.secondary { background: #eef1f4; color: #1c1e21; }
+    .panel button.danger { background: #9b2335; }
+    .panel .ship-item { width: 100%; text-align: left; background: #fff; color: inherit; border: 1px solid #e3e5e8; margin-bottom: 8px; }
+    .panel .ship-item.selected { border-color: #0f6b4c; background: #e7f5ee; }
+    .gate { position: fixed; inset: 0; background: rgba(20,61,50,.55); display: flex; align-items: center; justify-content: center; z-index: 5000; padding: 16px; }
+    .gate[hidden] { display: none; }
+    .gate .card { width: min(360px, 100%); display: grid; gap: 8px; }
+    .gate input { font: inherit; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; }
+    .flash { margin: 0 0 12px; padding: 8px 10px; border-radius: 6px; background: #e7f5ee; }
+    .flash.error { background: #fdecea; color: #8a1f2b; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    @media (max-width: 800px) {
+      .map-wrap { flex-direction: column; }
+      .panel { width: 100%; max-height: 46vh; border-left: 0; border-top: 1px solid #e3e5e8; }
+    }
   </style>
+  {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <header>
     <strong>კურიერი</strong>
-    {% if courier %}<span>{{ courier.user.get_full_name|default:courier.user.email }}</span>{% endif %}
+    <span id="who">{% if courier %}{{ courier.user.get_full_name|default:courier.user.email }}{% endif %}</span>
+    <nav>
+      <a href="{% url 'courier:map' %}">რუკა</a>
+      <a href="{% url 'courier:shipment-list' %}">სია</a>
+    </nav>
     <span class="spacer"></span>
     <a href="/">მთავარი</a>
+    {% block header_actions %}
     {% if user.is_authenticated %}
       <form method="post" action="{% url 'courier:logout' %}">
         {% csrf_token %}
         <button class="ghost" type="submit">გასვლა</button>
       </form>
     {% endif %}
+    {% endblock %}
   </header>
+  {% block content_wrap %}
   <main>{% block content %}{% endblock %}</main>
+  {% endblock %}
 </body>
 </html>

@@ -1,0 +1,360 @@
+{% extends "courier/base.html" %}
+{% block title %}რუკა{% endblock %}
+{% block body_class %}map-page{% endblock %}
+{% block extra_head %}
+  {% include "includes/leaflet_base.html" %}
+{% endblock %}
+{% block header_actions %}
+  <button class="ghost" type="button" id="tab-logout">გასვლა</button>
+{% endblock %}
+{% block content_wrap %}
+{{ status_ka|json_script:"status-ka" }}
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+<div id="gate" class="gate" hidden>
+  <form id="gate-form" class="card">
+    <h2>კურიერის შესვლა</h2>
+    <p class="hint">თითო ჩანართში სხვა კურიერი შედის. დისპეჩერი გახსენი სხვა ბრაუზერში ან Incognito-ში.</p>
+    <label for="gate-email">ელფოსტა</label>
+    <input id="gate-email" type="email" autocomplete="username" required>
+    <label for="gate-password">პაროლი</label>
+    <input id="gate-password" type="password" autocomplete="current-password" required>
+    <button type="submit">შესვლა</button>
+    <p id="gate-error" class="flash error" hidden></p>
+  </form>
+</div>
+<div class="map-wrap">
+  <div id="map" role="application" aria-label="კურიერის რუკა"></div>
+  <aside class="panel">
+    <h2>სატესტო რუკა</h2>
+    <p class="hint">ვინდოუსზე რუკაზე დააკლიკე — იგივე API გაიგზავნება, რასაც ანდროიდის აპი გამოიყენებს. ტელეფონზე „ჩემი ადგილი“ ნამდვილ GPS-ს ითხოვს. სამი კურიერი = სამი ჩანართი ამ გვერდზე.</p>
+    <div class="row">
+      <button type="button" id="gps-btn" class="secondary">ჩემი ადგილი</button>
+      <label class="muted"><input type="checkbox" id="click-send" checked> დაკლიკება აგზავნის ლოკაციას</label>
+    </div>
+    <div id="flash" hidden></div>
+    <div id="detail"></div>
+    <h2>ამანათები</h2>
+    <div id="list"></div>
+  </aside>
+</div>
+<script>
+(function () {
+  const STATUS = JSON.parse(document.getElementById("status-ka").textContent);
+  const CSRF = document.querySelector("[name=csrfmiddlewaretoken]").value;
+  const ACCESS_KEY = "courierAccess";
+  const REFRESH_KEY = "courierRefresh";
+  const ACTIONS = {
+    picked_up: "ავიღე",
+    in_transit: "საწყობშია",
+    out_for_delivery: "მივდივარ",
+    delivered: "ჩავაბარე",
+    failed: "ვერ ჩავაბარე",
+  };
+  const TBILISI = [41.7151, 44.8271];
+  const map = L.map("map").setView(TBILISI, 12);
+  addBaseTiles(map);
+
+  let shipments = [];
+  let selectedId = null;
+  let courierMarker = null;
+  const parcelMarkers = {};
+  let watchId = null;
+  let refreshing = null;
+
+  function accessToken() { return sessionStorage.getItem(ACCESS_KEY); }
+  function refreshToken() { return sessionStorage.getItem(REFRESH_KEY); }
+
+  function clearTokens() {
+    sessionStorage.removeItem(ACCESS_KEY);
+    sessionStorage.removeItem(REFRESH_KEY);
+  }
+
+  function showGate(visible, message) {
+    const gate = document.getElementById("gate");
+    const err = document.getElementById("gate-error");
+    gate.hidden = !visible;
+    err.hidden = !message;
+    err.textContent = message || "";
+  }
+
+  function setWho(me) {
+    const who = document.getElementById("who");
+    if (!who || !me) return;
+    const name = ((me.first_name || "") + " " + (me.last_name || "")).trim();
+    who.textContent = name || me.email || "";
+  }
+
+  async function refreshAccess() {
+    const token = refreshToken();
+    if (!token) return false;
+    if (refreshing) return refreshing;
+    refreshing = (async function () {
+      const response = await fetch("/api/v1/auth/token/refresh/", {
+        method: "POST",
+        headers: {"Accept": "application/json", "Content-Type": "application/json"},
+        credentials: "omit",
+        body: JSON.stringify({refresh: token}),
+      });
+      if (!response.ok) {
+        clearTokens();
+        return false;
+      }
+      const data = await response.json();
+      sessionStorage.setItem(ACCESS_KEY, data.access);
+      if (data.refresh) sessionStorage.setItem(REFRESH_KEY, data.refresh);
+      return true;
+    })();
+    try {
+      return await refreshing;
+    } finally {
+      refreshing = null;
+    }
+  }
+
+  async function api(path, options) {
+    const opts = options || {};
+    const jwt = accessToken();
+    const headers = Object.assign({"Accept": "application/json"}, opts.headers || {});
+    if (opts.body && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
+    if (jwt) headers.Authorization = "Bearer " + jwt;
+    else headers["X-CSRFToken"] = CSRF;
+    const response = await fetch("/api/v1/courier" + path, Object.assign({}, opts, {
+      credentials: jwt ? "omit" : "same-origin",
+      headers: headers,
+    }));
+    if (response.status === 401 && jwt) {
+      const ok = await refreshAccess();
+      if (ok) return api(path, options);
+    }
+    const text = await response.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (err) { data = {detail: text}; }
+    if (!response.ok) {
+      const detail = (data && (data.detail || data.failure_reason)) || response.statusText;
+      const error = new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+      error.status = response.status;
+      throw error;
+    }
+    return data;
+  }
+
+  function flash(message, isError) {
+    const el = document.getElementById("flash");
+    el.hidden = !message;
+    el.className = "flash" + (isError ? " error" : "");
+    el.textContent = message || "";
+  }
+
+  function latLng(obj) {
+    if (!obj || obj.latitude == null || obj.longitude == null) return null;
+    return [Number(obj.latitude), Number(obj.longitude)];
+  }
+
+  async function sendPoint(lat, lng, accuracy) {
+    const body = {
+      points: [{
+        lat: Number(lat).toFixed(6),
+        lng: Number(lng).toFixed(6),
+        accuracy: accuracy == null ? 15 : accuracy,
+        recorded_at: new Date().toISOString(),
+      }],
+    };
+    const result = await api("/locations/", {method: "POST", body: JSON.stringify(body)});
+    placeCourier(Number(lat), Number(lng));
+    flash("ლოკაცია გაიგზავნა (" + (result.accepted || 0) + ").");
+  }
+
+  function placeCourier(lat, lng) {
+    const here = [lat, lng];
+    if (courierMarker) courierMarker.setLatLng(here);
+    else courierMarker = L.circleMarker(here, {radius: 9, color: "#1b3a4b", fillColor: "#3d8bfd", fillOpacity: 1}).addTo(map).bindPopup("კურიერი");
+  }
+
+  function renderList() {
+    const box = document.getElementById("list");
+    if (!shipments.length) {
+      box.innerHTML = "<p class=\"muted\">ამანათი ჯერ არ გაქვთ.</p>";
+      return;
+    }
+    box.innerHTML = shipments.map(function (item) {
+      const selected = item.id === selectedId ? " selected" : "";
+      return "<button type=\"button\" class=\"ship-item" + selected + "\" data-id=\"" + item.id + "\">" +
+        "<strong>" + item.tracking_number + "</strong> <span class=\"badge\">" + (STATUS[item.status] || item.status) + "</span>" +
+        "<div class=\"muted\">" + item.recipient_name + " · " + item.delivery_address.city + ", " + item.delivery_address.line1 + "</div>" +
+        "</button>";
+    }).join("");
+    box.querySelectorAll("[data-id]").forEach(function (btn) {
+      btn.addEventListener("click", function () { select(btn.getAttribute("data-id")); });
+    });
+  }
+
+  function renderDetail() {
+    const item = shipments.find(function (row) { return row.id === selectedId; });
+    const box = document.getElementById("detail");
+    if (!item) { box.innerHTML = ""; return; }
+    const next = (item.allowed_next || []).map(function (status) {
+      const danger = status === "failed" ? " danger" : "";
+      return "<button type=\"button\" class=\"" + danger + "\" data-status=\"" + status + "\">" + (ACTIONS[status] || status) + "</button>";
+    }).join("");
+    const maps = item.delivery_address.maps_url
+      ? "<a href=\"" + item.delivery_address.maps_url + "\" target=\"_blank\" rel=\"noreferrer\">ნავიგაცია</a>"
+      : "";
+    box.innerHTML = "<div class=\"card\" style=\"margin-bottom:12px\">" +
+      "<strong>" + item.tracking_number + "</strong> <span class=\"badge\">" + (STATUS[item.status] || item.status) + "</span>" +
+      "<p>" + item.recipient_name + "<br><a href=\"tel:" + item.recipient_phone + "\">" + item.recipient_phone + "</a></p>" +
+      "<p class=\"muted\">" + item.delivery_address.city + ", " + item.delivery_address.line1 + "</p>" +
+      maps + "<div class=\"actions\">" + next + "</div></div>";
+    box.querySelectorAll("[data-status]").forEach(function (btn) {
+      btn.addEventListener("click", function () { changeStatus(item.id, btn.getAttribute("data-status")); });
+    });
+  }
+
+  function select(id) {
+    selectedId = id;
+    renderList();
+    renderDetail();
+    const marker = parcelMarkers[id];
+    if (marker) {
+      map.panTo(marker.getLatLng());
+      marker.openPopup();
+    }
+  }
+
+  async function changeStatus(id, status) {
+    const payload = {status: status};
+    if (status === "failed") {
+      const reason = window.prompt("რატომ ვერ ჩაბარდა?");
+      if (!reason) return;
+      payload.failure_reason = reason;
+    }
+    if (status === "delivered") {
+      payload.received_by = window.prompt("ვინ მიიღო? (შეგიძლია ცარიელი დატოვო)") || "";
+    }
+    try {
+      await api("/shipments/" + id + "/transition/", {method: "POST", body: JSON.stringify(payload)});
+      flash("სტატუსი განახლდა.");
+      await load();
+      select(id);
+    } catch (err) {
+      flash(err.message, true);
+    }
+  }
+
+  function drawParcels() {
+    Object.keys(parcelMarkers).forEach(function (key) {
+      map.removeLayer(parcelMarkers[key]);
+      delete parcelMarkers[key];
+    });
+    const bounds = [];
+    shipments.forEach(function (item) {
+      const point = latLng(item.delivery_address);
+      if (!point) return;
+      const marker = L.marker(point).addTo(map).bindPopup(item.tracking_number);
+      marker.on("click", function () { select(item.id); });
+      parcelMarkers[item.id] = marker;
+      bounds.push(point);
+    });
+    if (courierMarker) bounds.push(courierMarker.getLatLng());
+    if (bounds.length) map.fitBounds(bounds, {padding: [28, 28], maxZoom: 14});
+  }
+
+  async function load() {
+    const me = await api("/me/");
+    setWho(me);
+    if (me.last_latitude != null) placeCourier(Number(me.last_latitude), Number(me.last_longitude));
+    const listed = await api("/shipments/");
+    shipments = listed.results || listed;
+    drawParcels();
+    renderList();
+    renderDetail();
+  }
+
+  async function boot() {
+    try {
+      await load();
+      showGate(false);
+    } catch (err) {
+      showGate(true);
+    }
+  }
+
+  document.getElementById("gate-form").addEventListener("submit", async function (event) {
+    event.preventDefault();
+    showGate(true);
+    try {
+      const response = await fetch("/api/v1/auth/token/", {
+        method: "POST",
+        headers: {"Accept": "application/json", "Content-Type": "application/json"},
+        credentials: "omit",
+        body: JSON.stringify({
+          email: document.getElementById("gate-email").value,
+          password: document.getElementById("gate-password").value,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        showGate(true, data.detail || "ელფოსტა ან პაროლი არასწორია.");
+        return;
+      }
+      sessionStorage.setItem(ACCESS_KEY, data.access);
+      sessionStorage.setItem(REFRESH_KEY, data.refresh);
+      await load();
+      showGate(false);
+      flash("");
+    } catch (err) {
+      clearTokens();
+      showGate(true, err.status === 403 ? "ეს ანგარიში კურიერის არ არის." : (err.message || "შესვლა ვერ მოხერხდა."));
+    }
+  });
+
+  document.getElementById("tab-logout").addEventListener("click", function () {
+    clearTokens();
+    document.getElementById("who").textContent = "";
+    shipments = [];
+    selectedId = null;
+    renderList();
+    renderDetail();
+    showGate(true);
+    flash("ამ ჩანართიდან გახვედი. დისპეჩერი არ შეიცვალა.");
+  });
+
+  map.on("click", async function (event) {
+    if (!document.getElementById("click-send").checked) return;
+    try {
+      await sendPoint(event.latlng.lat, event.latlng.lng, 12);
+    } catch (err) {
+      if (err.status === 401 || err.status === 403) showGate(true);
+      flash(err.message, true);
+    }
+  });
+
+  document.getElementById("gps-btn").addEventListener("click", function () {
+    if (!navigator.geolocation) {
+      flash("ბრაუზერს GPS არ აქვს. რუკაზე დააკლიკე.", true);
+      return;
+    }
+    if (watchId != null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+      this.textContent = "ჩემი ადგილი";
+      flash("GPS გაჩერდა.");
+      return;
+    }
+    this.textContent = "GPS ჩართულია";
+    let lastGps = 0;
+    watchId = navigator.geolocation.watchPosition(function (pos) {
+      const now = Date.now();
+      if (now - lastGps < 8000) return;
+      lastGps = now;
+      sendPoint(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy).catch(function (err) {
+        flash(err.message, true);
+      });
+    }, function () {
+      flash("GPS ვერ ჩაირთო. HTTP-ზე ტელეფონი ხშირად ბლოკავს; რუკაზე დაკლიკება მაინც მუშაობს.", true);
+    }, {enableHighAccuracy: true, maximumAge: 5000, timeout: 15000});
+  });
+
+  boot();
+})();
+</script>
+{% endblock %}

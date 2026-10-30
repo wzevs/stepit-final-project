@@ -38,6 +38,9 @@ COURIER_REQUIRED = frozenset({S.ASSIGNED, S.PICKED_UP, S.OUT_FOR_DELIVERY, S.DEL
 # Statuses in which the courier may be changed (handover between couriers).
 REASSIGNABLE = frozenset({S.PENDING, S.ASSIGNED, S.PICKED_UP, S.IN_TRANSIT, S.FAILED})
 
+# Moves the Android app may request. Cancel / return / assign stay on the company panel.
+COURIER_ACTIONS = frozenset({S.PICKED_UP, S.IN_TRANSIT, S.OUT_FOR_DELIVERY, S.DELIVERED, S.FAILED})
+
 
 class ShipmentError(Exception):
     pass
@@ -56,6 +59,10 @@ def allowed_next(status: str) -> frozenset[str]:
 
 def can_transition(shipment: Shipment, to_status: str) -> bool:
     return to_status in allowed_next(shipment.status)
+
+
+def courier_allowed_next(status: str) -> frozenset[str]:
+    return allowed_next(status) & COURIER_ACTIONS
 
 
 # ---------------------------------------------------------------------------

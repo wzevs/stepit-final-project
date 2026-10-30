@@ -3,9 +3,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.db import transaction
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
-from django.views.generic import ListView
+from django.views.generic import ListView, TemplateView
 
 from apps.clients.models import Client
 from apps.couriers.models import CourierProfile
@@ -14,6 +15,7 @@ from apps.shipments.models import Shipment
 from apps.shipments.services import REASSIGNABLE, ShipmentError, assign_courier, unassign_courier
 
 from .forms import ClientCreateForm, CourierCreateForm
+from .live import live_couriers
 from .models import CompanyMembership
 
 WRITER_ROLES = {CompanyMembership.Role.OWNER, CompanyMembership.Role.DISPATCHER}
@@ -192,6 +194,15 @@ class ClientCreateView(CompanyMixin, View):
         client = form.save()
         messages.success(request, f"მაღაზია დაემატა: {client.name}")
         return redirect("manage:client-list")
+
+
+class LiveMapView(CompanyMixin, TemplateView):
+    template_name = "manage/map.html"
+
+
+class LiveCouriersView(CompanyMixin, View):
+    def get(self, request):
+        return JsonResponse(live_couriers(self.company))
 
 
 class CourierListView(CompanyMixin, ListView):

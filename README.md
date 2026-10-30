@@ -13,7 +13,7 @@ This is the front door. It joins the pages that already exist:
 - guest tracking by tracking number
 - sign-in for a shop, a courier, and the courier-company owner
 
-Shop staff land on /dashboard/shipments/. Couriers land on /courier/shipments/. Company members (owner, dispatcher, or viewer) land on /manage/shipments/. A wrong role or a bad password does not sign the user in. The public tracking result shows the status, the address, and the public event history. It does not show the recipient phone.
+Shop staff land on /dashboard/shipments/. Couriers land on /courier/map/. Company members (owner, dispatcher, or viewer) land on /manage/shipments/. A wrong role or a bad password does not sign the user in. The public tracking result shows the status, the address, and the public event history. It does not show the recipient phone.
 
 
 ## Stack
@@ -77,7 +77,39 @@ Courier-company staff can also sign in at http://127.0.0.1:8000/manage/login/.
 They need a CompanyMembership. Owners and dispatchers register shops and couriers and assign parcels.
 Viewers can look, but cannot change anything.
 
-## Courier list
+The live map is http://127.0.0.1:8000/manage/map/. It polls /manage/live/ every few seconds and moves the courier pin when a new GPS point arrives. This is polling, not WebSockets; that is enough to watch a courier during a delivery. Open it in a separate browser from the courier tabs so the session cookie is not overwritten. Recipient live tracking on a public link comes later.
 
-After signing in, a courier sees their parcels at http://127.0.0.1:8000/courier/shipments/.
-The list is read-only. Status changes and live location stay on the Android app.
+## Courier map
+
+Open http://127.0.0.1:8000/courier/map/ and sign in on the overlay. Each browser tab stores its own JWT, so three courier tabs can stay logged in at the same time. Do not use the homepage login for this demo: that cookie is shared across tabs and will overwrite the dispatcher.
+
+Keep the dispatcher at http://127.0.0.1:8000/manage/map/ in another browser (or Incognito). The live map polls /manage/live/ every few seconds.
+
+On a Windows browser, click the map to send a test location. On a phone, "ჩემი ადგილი" asks for GPS. Status buttons (picked up, out for delivery, delivered, failed) call POST /api/v1/courier/shipments/{id}/transition/. The old list is still at /courier/shipments/.
+
+To try it from an Android browser on the same Wi-Fi:
+
+```powershell
+python manage.py runserver 0.0.0.0:8000
+```
+
+Then open http://<this-pc-ip>:8000/. Chrome on the phone often blocks GPS on plain HTTP; clicking the map still sends the point.
+
+## Courier API
+
+The Android app uses JWT, not the browser session.
+
+1. POST /api/v1/auth/token/ with `{"email": "...", "password": "..."}`.
+2. Send `Authorization: Bearer <access>` on every later call.
+3. Refresh with POST /api/v1/auth/token/refresh/.
+
+Courier endpoints:
+
+- GET /api/v1/courier/me/
+- POST /api/v1/courier/status/ with `{"status": "available"}` (or `busy` / `offline`)
+- GET /api/v1/courier/shipments/
+- POST /api/v1/courier/shipments/{id}/transition/ with `{"status": "picked_up"}`
+- POST /api/v1/courier/locations/ with a `points` array
+- POST /api/v1/courier/devices/ with the FCM token
+
+A courier can pick up, mark in transit / out for delivery, deliver, or mark failed. Cancel and return stay on the manager panel. GPS points noisier than 200 m, or dated in the future, are dropped. Interactive docs: http://127.0.0.1:8000/api/docs/

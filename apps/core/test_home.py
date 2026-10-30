@@ -64,9 +64,11 @@ def test_courier_login_opens_only_their_shipments(client, courier, shipment):
         {"role": "courier", "username": "courier@example.com", "password": "pass"},
     )
     assert response.status_code == 302
-    assert response.url == "/courier/shipments/"
+    assert response.url == "/courier/map/"
     page = client.get(response.url)
-    assert shipment.tracking_number in page.content.decode()
+    assert 'id="map"' in page.content.decode()
+    listed = client.get("/courier/shipments/")
+    assert shipment.tracking_number in listed.content.decode()
 
 
 def test_shop_user_cannot_enter_as_a_courier(client, client_shop):

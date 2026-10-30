@@ -1,0 +1,23 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+function addBaseTiles(map) {
+  const esri = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom: 19,
+    attribution: "Tiles &copy; Esri",
+  });
+  const carto = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    maxZoom: 19,
+    subdomains: "abcd",
+    attribution: "&copy; OpenStreetMap &copy; CARTO",
+  });
+  let switched = false;
+  esri.on("tileerror", function () {
+    if (switched) return;
+    switched = true;
+    map.removeLayer(esri);
+    carto.addTo(map);
+  });
+  esri.addTo(map);
+}
+</script>

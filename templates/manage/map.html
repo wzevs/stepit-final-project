@@ -1,0 +1,119 @@
+{% extends "manage/base.html" %}
+{% block title %}ლაივ რუკა{% endblock %}
+{% block body_class %}map-page{% endblock %}
+{% block extra_head %}
+  {% include "includes/leaflet_base.html" %}
+{% endblock %}
+{% block content_wrap %}
+<div class="map-wrap">
+  <div id="map" role="application" aria-label="კურიერების ლაივ რუკა"></div>
+  <aside class="panel">
+    <h2>ლაივი</h2>
+    <p class="hint">კურიერის ტელეფონი ან სატესტო რუკა ლოკაციას აგზავნის, აქ კი ყოველ რამდენიმე წამში ახლდება. ეს ჯერ polling-ია, არა WebSocket.</p>
+    <div id="updated" class="muted"></div>
+    <h2>კურიერები</h2>
+    <div id="list"></div>
+  </aside>
+</div>
+<script>
+(function () {
+  const TBILISI = [41.7151, 44.8271];
+  const map = L.map("map").setView(TBILISI, 12);
+  addBaseTiles(map);
+
+  const markers = {};
+  let selectedId = null;
+  let fitted = false;
+  let timer = null;
+
+  function ageText(sec) {
+    if (sec == null) return "ლოკაცია ჯერ არ არის";
+    if (sec < 8) return "ახლა";
+    if (sec < 60) return sec + " წმ წინ";
+    return Math.floor(sec / 60) + " წთ წინ";
+  }
+
+  function renderList(couriers) {
+    const box = document.getElementById("list");
+    if (!couriers.length) {
+      box.innerHTML = "<p class=\"muted\">კურიერი არ არის.</p>";
+      return;
+    }
+    box.innerHTML = couriers.map(function (row) {
+      const selected = row.id === selectedId ? " selected" : "";
+      const stale = row.stale ? " stale" : "";
+      return "<button type=\"button\" class=\"person" + selected + stale + "\" data-id=\"" + row.id + "\">" +
+        "<span class=\"dot" + (row.stale ? " stale" : "") + "\"></span><strong>" + row.name + "</strong>" +
+        " <span class=\"badge\">" + row.status_display + "</span>" +
+        "<div class=\"muted\">" + ageText(row.age_sec) +
+        (row.active_jobs ? " · " + row.active_jobs + " ამანათი" : "") +
+        "</div></button>";
+    }).join("");
+    box.querySelectorAll("[data-id]").forEach(function (btn) {
+      btn.addEventListener("click", function () { select(btn.getAttribute("data-id")); });
+    });
+  }
+
+  function select(id) {
+    selectedId = id;
+    const marker = markers[id];
+    if (marker) {
+      map.panTo(marker.getLatLng());
+      marker.openPopup();
+    }
+  }
+
+  function draw(couriers) {
+    const seen = {};
+    const bounds = [];
+    couriers.forEach(function (row) {
+      seen[row.id] = true;
+      if (row.latitude == null || row.longitude == null) return;
+      const here = [row.latitude, row.longitude];
+      bounds.push(here);
+      const html = row.name + "<br>" + row.status_display + "<br>" + ageText(row.age_sec);
+      if (markers[row.id]) {
+        markers[row.id].setLatLng(here);
+        markers[row.id].setPopupContent(html);
+      } else {
+        const marker = L.circleMarker(here, {
+          radius: 9,
+          color: "#143d32",
+          fillColor: row.stale ? "#9aa39e" : "#3d8bfd",
+          fillOpacity: 1,
+        }).addTo(map).bindPopup(html);
+        marker.on("click", function () { select(row.id); });
+        markers[row.id] = marker;
+      }
+      markers[row.id].setStyle({fillColor: row.stale ? "#9aa39e" : "#3d8bfd"});
+    });
+    Object.keys(markers).forEach(function (id) {
+      if (!seen[id]) {
+        map.removeLayer(markers[id]);
+        delete markers[id];
+      }
+    });
+    if (!fitted && bounds.length) {
+      map.fitBounds(bounds, {padding: [36, 36], maxZoom: 14});
+      fitted = true;
+    }
+    renderList(couriers);
+  }
+
+  async function tick() {
+    const response = await fetch("/manage/live/", {credentials: "same-origin", headers: {Accept: "application/json"}});
+    if (!response.ok) throw new Error("live " + response.status);
+    const data = await response.json();
+    draw(data.couriers || []);
+    const stamp = document.getElementById("updated");
+    stamp.textContent = "განახლდა " + new Date().toLocaleTimeString("ka-GE");
+    const wait = (data.poll_interval_sec || 4) * 1000;
+    timer = setTimeout(tick, wait);
+  }
+
+  tick().catch(function (err) {
+    document.getElementById("updated").textContent = err.message;
+  });
+})();
+</script>
+{% endblock %}

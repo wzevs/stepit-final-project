@@ -160,7 +160,10 @@ SIMPLE_JWT = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Courier Platform API",
-    "DESCRIPTION": "Logistics / courier service platform API",
+    "DESCRIPTION": (
+        "Logistics / courier service platform API. "
+        "Shop software uses X-API-Key. The courier app uses JWT."
+    ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }

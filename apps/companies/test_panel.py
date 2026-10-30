@@ -1,11 +1,13 @@
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.clients.models import Client
 from apps.companies.models import CompanyMembership
 from apps.couriers.models import CourierProfile
 from apps.shipments.models import Shipment
+from apps.tracking.services import record_locations
 
 pytestmark = pytest.mark.django_db
 
@@ -93,6 +95,52 @@ def test_dispatcher_registers_a_shop(client, manager, company):
     assert response.status_code == 302
     shop = Client.objects.get(company=company, code="SHOP2")
     assert shop.api_enabled is True
+
+
+def test_live_map_shows_this_companys_courier(client, manager, courier):
+    client.force_login(manager)
+    page = client.get(reverse("manage:live-map"))
+    assert page.status_code == 200
+    assert 'id="map"' in page.content.decode()
+    assert "/manage/live/" in page.content.decode()
+
+    empty = client.get(reverse("manage:live-couriers"))
+    assert empty.status_code == 200
+    people = empty.json()["couriers"]
+    assert len(people) == 1
+    assert people[0]["name"] == "courier@example.com"
+    assert people[0]["latitude"] is None
+    assert people[0]["stale"] is True
+
+    record_locations(
+        courier,
+        [
+            {
+                "lat": "41.715100",
+                "lng": "44.827100",
+                "accuracy": 10,
+                "recorded_at": timezone.now().isoformat(),
+            }
+        ],
+    )
+    live = client.get(reverse("manage:live-couriers")).json()
+    pin = live["couriers"][0]
+    assert round(pin["latitude"], 4) == 41.7151
+    assert round(pin["longitude"], 4) == 44.8271
+    assert live["poll_interval_sec"] == 4
+    assert pin["stale"] is False
+
+
+def test_live_feed_hides_other_company(client, manager, courier):
+    from apps.companies.models import CourierCompany
+
+    other = CourierCompany.objects.create(name="Other", slug="other-live", tracking_prefix="OLV")
+    stranger = User.objects.create_user(email="stranger@example.com", password="pass", role=User.Role.COURIER)
+    CourierProfile.objects.create(user=stranger, company=other)
+    client.force_login(manager)
+    ids = {row["id"] for row in client.get(reverse("manage:live-couriers")).json()["couriers"]}
+    assert str(courier.pk) in ids
+    assert str(CourierProfile.objects.get(user=stranger).pk) not in ids
 
 
 def test_dispatcher_registers_a_courier(client, manager, company):
