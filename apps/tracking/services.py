@@ -26,6 +26,15 @@ def build_tracking_url(raw_token: str) -> str:
     return f"{settings.PUBLIC_BASE_URL}/t/{raw_token}/"
 
 
+def issue_staff_tracking_url(shipment: Shipment) -> str:
+    """
+    Mint a recipient link for the shop or dispatcher to copy.
+    Previous SMS/email tokens stay valid.
+    """
+    _, raw = TrackingToken.issue(shipment, sent_via="staff", revoke_existing=False)
+    return build_tracking_url(raw)
+
+
 def _coord(value):
     return float(value) if value is not None else None
 

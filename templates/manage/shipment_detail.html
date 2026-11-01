@@ -2,10 +2,14 @@
 {% load dashboard_tags %}
 {% block title %}{{ shipment.tracking_number }}{% endblock %}
 {% block content %}
-  <p><a href="{% url 'manage:shipment-list' %}">ამანათები</a></p>
+  <p><a href="{% url 'manage:shipment-list' %}">ამანათები</a>
+    · <a href="{% url 'manage:shipment-label' shipment.pk %}">ეტიკეტი</a></p>
   <div class="card">
     <h1>{{ shipment.tracking_number }}</h1>
-    <p><span class="badge">{{ shipment.status|ka:status_ka }}</span></p>
+    <p><span class="badge">{{ shipment.status|ka:status_ka }}</span>
+      {% if shipment.payment_type == "cod" %}<span class="badge">თანხა ადგილზე {{ shipment.cod_amount }} ₾</span>{% endif %}
+      {% if shipment.is_fragile %}<span class="badge">მყიფე</span>{% endif %}
+    </p>
     <p><strong>მაღაზია:</strong> {{ shipment.client.name }}</p>
     <p><strong>მიმღები:</strong> {{ shipment.recipient_name }}, {{ shipment.recipient_phone }}</p>
     <p><strong>საიდან:</strong> {{ shipment.pickup_address }}</p>
@@ -13,11 +17,55 @@
     <p><strong>კურიერი:</strong>
       {% if shipment.courier %}{{ shipment.courier.user.get_full_name|default:shipment.courier.user.email }}{% else %}არ არის{% endif %}
     </p>
+    {% if shipment.scheduled_delivery_date %}
+      <p><strong>მიწოდების თარიღი:</strong> {{ shipment.scheduled_delivery_date|date:"d.m.Y" }}</p>
+    {% endif %}
+    {% if shipment.failure_reason %}<p><strong>ვერ ჩაბარდა:</strong> {{ shipment.failure_reason }}</p>{% endif %}
+    {% if shipment.received_by %}<p><strong>მიიღო:</strong> {{ shipment.received_by }}</p>{% endif %}
+    {% if shipment.proof_photo %}
+      <p><strong>ჩაბარების ფოტო:</strong> <a href="{{ shipment.proof_photo.url }}" target="_blank" rel="noopener">ნახვა</a></p>
+    {% endif %}
   </div>
+
+  {% if tracking_url %}
+    <div class="card">
+      <p class="muted" style="margin:0 0 8px">მიმღების ლინკი — SMS worker-ის გარეშე აქედან გააგზავნეთ.</p>
+      <input id="tracking-url" type="text" readonly value="{{ tracking_url }}">
+    </div>
+  {% endif %}
+
+  {% if can_share_tracking or can_cancel or can_return %}
+    <h2 style="font-size: 16px;">მოქმედებები</h2>
+    <div class="row">
+      {% if can_share_tracking %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="intent" value="tracking_link">
+          <button type="submit">მიმღების ლინკი</button>
+        </form>
+      {% endif %}
+      {% if can_cancel %}
+        <form method="post" onsubmit="return confirm('გავაუქმოთ ეს ამანათი?');">
+          {% csrf_token %}
+          <input type="hidden" name="intent" value="cancel">
+          <button class="danger" type="submit">გაუქმება</button>
+        </form>
+      {% endif %}
+      {% if can_return %}
+        <form method="post" onsubmit="return confirm('დავაბრუნოთ გამგზავნთან?');">
+          {% csrf_token %}
+          <input type="hidden" name="intent" value="return">
+          <button class="danger" type="submit">დაბრუნება</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+
   {% if can_assign or can_unassign %}
     <h2 style="font-size: 16px;">კურიერის დანიშვნა</h2>
     <form method="post" class="card">
       {% csrf_token %}
+      <input type="hidden" name="intent" value="assign">
       <div class="row">
         <div class="field">
           <label for="id_courier">კურიერი</label>

@@ -9,11 +9,11 @@ Start the server, then open http://127.0.0.1:8000/.
 
 This is the front door. It joins the pages that already exist:
 
-- a service slider and the service list
-- guest tracking by tracking number
-- sign-in for a shop, a courier, and the courier-company owner
+- a GLS-style header, photo slider, and footer
+- guest tracking by tracking number on the homepage
+- Login in the header, which opens /login/ for shop, courier, or company staff
 
-Shop staff land on /dashboard/shipments/. Couriers land on /courier/map/. Company members (owner, dispatcher, or viewer) land on /manage/shipments/. A wrong role or a bad password does not sign the user in. The public tracking result shows the status, the address, and the public event history. It does not show the recipient phone.
+Shop staff land on /dashboard/shipments/. Couriers land on /courier/map/. Company members (owner, dispatcher, or viewer) land on /manage/shipments/. A wrong role or a bad password does not sign the user in. The public tracking result shows the status, the address, and the public event history. It does not show the recipient phone or the courier GPS.
 
 A recipient SMS/email link opens http://127.0.0.1:8000/t/<token>/. That page is the same public snapshot, plus a live map while the parcel is out for delivery. The raw token is not stored; a dead, expired, or unknown link returns 404.
 
@@ -23,7 +23,7 @@ A recipient SMS/email link opens http://127.0.0.1:8000/t/<token>/. That page is 
 - Python 3.13, Django 5.2, Django REST Framework
 - SQLite for local development, PostgreSQL in production
 - JWT (SimpleJWT) for staff / courier auth, API keys for client integrations
-- Google Maps for addresses and live tracking
+- Leaflet maps (Esri / CARTO tiles). City-center pins fill in when a street geocoder is not configured.
 
 ## Project layout
 
@@ -72,12 +72,13 @@ Interactive docs: http://127.0.0.1:8000/api/docs/
 
 Shops without an integration sign in at http://127.0.0.1:8000/dashboard/login/ and add parcels by hand.
 The dashboard account needs a ClientMembership; API access also requires Client.api_enabled.
+From a shipment page the shop can cancel (before pickup), print a label, and copy a recipient tracking link.
 
 ## Manager panel
 
 Courier-company staff can also sign in at http://127.0.0.1:8000/manage/login/.
-They need a CompanyMembership. Owners and dispatchers register shops and couriers and assign parcels.
-Viewers can look, but cannot change anything.
+They need a CompanyMembership. Owners and dispatchers register shops (optional default pickup point) and couriers, assign parcels, cancel, or return to sender.
+Viewers can look, but cannot change anything. "მიმღების ლინკი" mints a /t/<token>/ URL without sending SMS.
 
 The live map is http://127.0.0.1:8000/manage/map/. It polls /manage/live/ every few seconds and moves the courier pin when a new GPS point arrives. This is polling, not WebSockets; that is enough to watch a courier during a delivery. Open it in a separate browser from the courier tabs so the session cookie is not overwritten.
 
@@ -85,7 +86,7 @@ Recipient live tracking is the public page /t/<token>/. It polls /t/<token>/live
 
 ## Courier map
 
-Open http://127.0.0.1:8000/courier/map/ and sign in on the overlay. Each browser tab stores its own JWT, so three courier tabs can stay logged in at the same time. Do not use the homepage login for this demo: that cookie is shared across tabs and will overwrite the dispatcher.
+Open http://127.0.0.1:8000/courier/map/ and sign in on the overlay. Each browser tab stores its own JWT, so three courier tabs can stay logged in at the same time. The homepage does not create a courier session cookie, so the dispatcher map in another tab stays signed in.
 
 Keep the dispatcher at http://127.0.0.1:8000/manage/map/ in another browser (or Incognito). The live map polls /manage/live/ every few seconds.
 

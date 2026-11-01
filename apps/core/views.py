@@ -33,7 +33,7 @@ class HomeView(View):
         if query:
             shipment = (
                 Shipment.objects.filter(tracking_number__iexact=query)
-                .select_related("delivery_address", "courier")
+                .select_related("delivery_address")
                 .first()
             )
             if shipment:
@@ -52,7 +52,12 @@ class HomeView(View):
 
 
 class GateLoginView(View):
-    """One login form for a shop, a courier, or a courier-company owner."""
+    """Role picker plus login. Shop and owner use a session; couriers use the map JWT."""
+
+    template_name = "public/login.html"
+
+    def get(self, request):
+        return render(request, self.template_name)
 
     def post(self, request):
         role = request.POST.get("role")
@@ -62,13 +67,15 @@ class GateLoginView(View):
         user = authenticate(request, username=email, password=password)
         if spec is None:
             messages.error(request, "აირჩიეთ ვინ ხართ.")
-            return redirect("/#login")
+            return redirect("/login/")
         if user is None or not user.is_active:
             messages.error(request, "ელფოსტა ან პაროლი არასწორია.")
-            return redirect("/#login")
+            return redirect("/login/")
         if not _role_matches(user, role):
             messages.error(request, spec["denied"])
-            return redirect("/#login")
+            return redirect(f"/login/?role={role}")
+        if role == "courier":
+            return redirect(spec["target"])
         login(request, user)
         return redirect(spec["target"])
 

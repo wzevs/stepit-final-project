@@ -7,22 +7,12 @@ from django.views import View
 from django.views.generic import ListView
 
 from apps.shipments.creation import ShipmentCreateError, create_shipment
+from apps.shipments.labels import PAYMENT_KA, STATUS_KA
 from apps.shipments.models import Shipment
+from apps.shipments.services import InvalidTransition, ShipmentError, allowed_next, transition
+from apps.tracking.services import issue_staff_tracking_url
 
 from .forms import ShipmentCreateForm
-
-STATUS_KA = {
-    Shipment.Status.DRAFT: "დრაფტი",
-    Shipment.Status.PENDING: "ელოდება აღებას",
-    Shipment.Status.ASSIGNED: "კურიერი დანიშნულია",
-    Shipment.Status.PICKED_UP: "აღებულია",
-    Shipment.Status.IN_TRANSIT: "გზაშია",
-    Shipment.Status.OUT_FOR_DELIVERY: "მიაქვთ მიმღებთან",
-    Shipment.Status.DELIVERED: "ჩაბარებულია",
-    Shipment.Status.FAILED: "ვერ ჩაბარდა",
-    Shipment.Status.RETURNED: "დაბრუნებულია",
-    Shipment.Status.CANCELLED: "გაუქმებულია",
-}
 
 
 class ShopMixin(LoginRequiredMixin):
@@ -49,6 +39,7 @@ class ShopMixin(LoginRequiredMixin):
         context["shop"] = self.shop
         context["memberships"] = self.memberships
         context["status_ka"] = STATUS_KA
+        context["payment_ka"] = PAYMENT_KA
         return context
 
 
@@ -121,16 +112,18 @@ class ShipmentCreateView(ShopMixin, View):
         return redirect("dashboard:shipment-detail", pk=shipment.pk)
 
     def _context(self, form):
-        return {"form": form, "shop": self.shop, "memberships": self.memberships, "status_ka": STATUS_KA}
+        return {
+            "form": form,
+            "shop": self.shop,
+            "memberships": self.memberships,
+            "status_ka": STATUS_KA,
+        }
 
 
 class ShipmentDetailView(ShopMixin, View):
     def get(self, request, pk):
-        shipment = get_object_or_404(
-            Shipment.objects.select_related("pickup_address", "delivery_address", "courier__user"),
-            pk=pk,
-            client=self.shop,
-        )
+        shipment = self._shipment(pk)
+        tracking_url = request.session.pop("tracking_url", "")
         events = shipment.events.filter(is_public=True)
         return render(
             request,
@@ -138,6 +131,52 @@ class ShipmentDetailView(ShopMixin, View):
             {
                 "shipment": shipment,
                 "events": events,
+                "shop": self.shop,
+                "memberships": self.memberships,
+                "status_ka": STATUS_KA,
+                "payment_ka": PAYMENT_KA,
+                "can_cancel": Shipment.Status.CANCELLED in allowed_next(shipment.status),
+                "tracking_url": tracking_url,
+            },
+        )
+
+    def post(self, request, pk):
+        shipment = self._shipment(pk)
+        intent = request.POST.get("intent")
+        note = (request.POST.get("note") or "").strip()
+        try:
+            if intent == "cancel":
+                transition(shipment, Shipment.Status.CANCELLED, actor=request.user, note=note)
+                messages.success(request, "ამანათი გაუქმდა.")
+            elif intent == "tracking_link":
+                request.session["tracking_url"] = issue_staff_tracking_url(shipment)
+                messages.success(request, "მიმღების ლინკი მზადაა. დააკოპირეთ ქვემოთ.")
+            else:
+                messages.error(request, "უცნობი მოქმედება.")
+        except (InvalidTransition, ShipmentError):
+            messages.error(request, "ეს მოქმედება ამ სტატუსზე არ შეიძლება.")
+        return redirect("dashboard:shipment-detail", pk=shipment.pk)
+
+    def _shipment(self, pk):
+        return get_object_or_404(
+            Shipment.objects.select_related("pickup_address", "delivery_address", "courier__user"),
+            pk=pk,
+            client=self.shop,
+        )
+
+
+class ShipmentLabelView(ShopMixin, View):
+    def get(self, request, pk):
+        shipment = get_object_or_404(
+            Shipment.objects.select_related("pickup_address", "delivery_address", "client", "company"),
+            pk=pk,
+            client=self.shop,
+        )
+        return render(
+            request,
+            "shipments/label.html",
+            {
+                "shipment": shipment,
                 "shop": self.shop,
                 "memberships": self.memberships,
                 "status_ka": STATUS_KA,

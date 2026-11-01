@@ -11,7 +11,7 @@ from apps.shipments.models import Shipment
 
 
 class CourierMixin(LoginRequiredMixin):
-    login_url = "/#login"
+    login_url = "/login/"
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:

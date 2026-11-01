@@ -30,7 +30,7 @@
 </head>
 <body>
   <header>
-    <strong>კურიერი</strong>
+    <strong>Galaxy Express</strong>
     <a href="/">მთავარი</a>
   </header>
   <main>
@@ -143,21 +143,23 @@
     }
 
     async function tick() {
-      const response = await fetch(LIVE_URL, {headers: {Accept: "application/json"}});
-      if (response.status === 404) {
-        document.getElementById("live-hint").textContent = "ეს ლინკი აღარ მოქმედებს.";
-        return;
+      try {
+        const response = await fetch(LIVE_URL, {headers: {Accept: "application/json"}});
+        if (response.status === 404) {
+          document.getElementById("live-hint").textContent = "ეს ლინკი აღარ მოქმედებს.";
+          return;
+        }
+        if (!response.ok) throw new Error("live " + response.status);
+        const data = await response.json();
+        draw(data);
+        timer = setTimeout(tick, (data.poll_interval_sec || 4) * 1000);
+      } catch (err) {
+        document.getElementById("updated").textContent = "განახლება ვერ მოხერხდა, კიდევ ვცდით.";
+        timer = setTimeout(tick, 8000);
       }
-      if (!response.ok) throw new Error("live " + response.status);
-      const data = await response.json();
-      draw(data);
-      const wait = (data.poll_interval_sec || 4) * 1000;
-      timer = setTimeout(tick, wait);
     }
 
-    tick().catch(function (err) {
-      document.getElementById("updated").textContent = err.message;
-    });
+    tick();
   })();
   </script>
 </body>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ shipment.tracking_number }}</title>
+  <style>
+    body { margin: 0; font: 16px/1.4 "Segoe UI", sans-serif; color: #111; }
+    main { max-width: 420px; margin: 24px auto; padding: 24px; border: 2px solid #111; }
+    .code { font-size: 28px; letter-spacing: .08em; font-weight: 700; margin: 0 0 16px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; margin: 16px 0 4px; color: #444; }
+    p { margin: 0; }
+    .actions { margin: 16px auto; max-width: 420px; }
+    @media print {
+      .actions { display: none; }
+      main { border-width: 2px; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <p class="actions"><button type="button" onclick="window.print()">ბეჭდვა</button></p>
+  <main>
+    <p class="code">{{ shipment.tracking_number }}</p>
+    <p>{{ shipment.company.name }}{% if shipment.client %} · {{ shipment.client.name }}{% endif %}</p>
+    <h2>საიდან</h2>
+    <p>{{ shipment.pickup_address.city }}, {{ shipment.pickup_address.line1 }}</p>
+    <h2>სად</h2>
+    <p><strong>{{ shipment.recipient_name }}</strong></p>
+    <p>{{ shipment.recipient_phone }}</p>
+    <p>{{ shipment.delivery_address.city }}, {{ shipment.delivery_address.line1 }}
+      {% if shipment.delivery_address.line2 %}<br>{{ shipment.delivery_address.line2 }}{% endif %}
+    </p>
+    {% if shipment.payment_type == "cod" %}
+      <h2>თანხა ადგილზე</h2>
+      <p>{{ shipment.cod_amount }} ₾</p>
+    {% endif %}
+    {% if shipment.is_fragile %}<p><strong>მყიფე</strong></p>{% endif %}
+  </main>
+</body>
+</html>

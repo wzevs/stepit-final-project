@@ -3,10 +3,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.clients.models import Client
+from apps.clients.models import Client, PickupPoint
 from apps.companies.models import CompanyMembership
 from apps.couriers.models import CourierProfile
 from apps.shipments.models import Shipment
+from apps.shipments.services import assign_courier, transition
 from apps.tracking.services import record_locations
 
 pytestmark = pytest.mark.django_db
@@ -95,6 +96,62 @@ def test_dispatcher_registers_a_shop(client, manager, company):
     assert response.status_code == 302
     shop = Client.objects.get(company=company, code="SHOP2")
     assert shop.api_enabled is True
+
+
+def test_dispatcher_registers_shop_with_pickup_point(client, manager, company):
+    client.force_login(manager)
+    response = client.post(
+        reverse("manage:client-create"),
+        {
+            "name": "Cafe",
+            "code": "CAFE",
+            "pickup_city": "Tbilisi",
+            "pickup_line1": "Rustaveli 10",
+        },
+    )
+    assert response.status_code == 302
+    shop = Client.objects.get(company=company, code="CAFE")
+    point = PickupPoint.objects.get(client=shop)
+    assert point.is_default is True
+    assert point.address.latitude is not None
+
+
+def test_dispatcher_cancels_returns_and_shares_link(client, manager, shipment, courier):
+    client.force_login(manager)
+    detail = reverse("manage:shipment-detail", args=[shipment.pk])
+    assert client.get(reverse("manage:shipment-label", args=[shipment.pk])).status_code == 200
+
+    shared = client.post(detail, {"intent": "tracking_link"})
+    assert shared.status_code == 302
+    page = client.get(detail)
+    assert "/t/" in page.content.decode()
+
+    assign_courier(shipment, courier)
+    transition(shipment, Shipment.Status.PICKED_UP)
+    returned = client.post(detail, {"intent": "return"})
+    assert returned.status_code == 302
+    shipment.refresh_from_db()
+    assert shipment.status == Shipment.Status.RETURNED
+
+
+def test_dispatcher_cancels_pending(client, manager, shipment):
+    client.force_login(manager)
+    response = client.post(
+        reverse("manage:shipment-detail", args=[shipment.pk]), {"intent": "cancel"}
+    )
+    assert response.status_code == 302
+    shipment.refresh_from_db()
+    assert shipment.status == Shipment.Status.CANCELLED
+
+
+def test_viewer_cannot_cancel(client, viewer, shipment):
+    client.force_login(viewer)
+    response = client.post(
+        reverse("manage:shipment-detail", args=[shipment.pk]), {"intent": "cancel"}
+    )
+    assert response.status_code == 403
+    shipment.refresh_from_db()
+    assert shipment.status == Shipment.Status.PENDING
 
 
 def test_live_map_shows_this_companys_courier(client, manager, courier):

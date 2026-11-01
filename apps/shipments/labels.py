@@ -12,3 +12,8 @@ STATUS_KA = {
     Shipment.Status.RETURNED: "დაბრუნებულია",
     Shipment.Status.CANCELLED: "გაუქმებულია",
 }
+
+PAYMENT_KA = {
+    Shipment.PaymentType.PREPAID: "წინასწარ",
+    Shipment.PaymentType.COD: "თანხა ადგილზე",
+}

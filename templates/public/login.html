@@ -1,0 +1,87 @@
+{% extends "public/base.html" %}
+{% block title %}შესვლა{% endblock %}
+{% block extra_css %}
+<style>
+  .auth { width: min(960px, calc(100% - 40px)); margin: 40px auto 24px; }
+  .auth h1 { margin: 0 0 8px; font-size: 32px; }
+  .lead { color: var(--muted); margin: 0 0 24px; }
+  .roles { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .roles button {
+    border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 10px 18px;
+    font: inherit; cursor: pointer;
+  }
+  .roles button.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 24px; max-width: 440px; }
+  .panel h2 { margin: 0 0 14px; font-size: 20px; }
+  .panel form { display: grid; gap: 10px; }
+  label { font-size: 13px; }
+  input[type="email"], input[type="password"] {
+    font: inherit; padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 8px; width: 100%;
+  }
+  .messages { list-style: none; padding: 0; margin: 0 0 16px; }
+  .messages li { background: #fdecea; border: 1px solid #f5c2c0; color: #8a1f2b; border-radius: 8px; padding: 10px 12px; }
+</style>
+{% endblock %}
+{% block content %}
+  <div class="auth">
+    <h1>შესვლა</h1>
+    <p class="lead">აირჩიეთ ვინ ხართ, შემდეგ შეიყვანეთ ანგარიში.</p>
+    {% if messages %}
+      <ul class="messages">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+    {% endif %}
+    <div class="roles" role="tablist">
+      <button type="button" class="active" data-role="shop">მაღაზია</button>
+      <button type="button" data-role="courier">კურიერი</button>
+      <button type="button" data-role="owner">მფლობელი</button>
+    </div>
+
+    <div class="panel" id="panel-shop">
+      <h2>მაღაზია</h2>
+      <form method="post" action="{% url 'gate-login' %}">
+        {% csrf_token %}
+        <input type="hidden" name="role" value="shop">
+        <label for="shop-email">ელფოსტა</label>
+        <input id="shop-email" type="email" name="username" required autocomplete="username">
+        <label for="shop-password">პაროლი</label>
+        <input id="shop-password" type="password" name="password" required autocomplete="current-password">
+        <button class="btn-blue" type="submit">შესვლა</button>
+      </form>
+    </div>
+
+    <div class="panel" id="panel-courier" hidden>
+      <h2>კურიერი</h2>
+      <p>შედით რუკის გვერდზე. თითო ჩანართს საკუთარი შესვლა აქვს და დისპეჩერის სესიას არ ცვლის.</p>
+      <p><a class="btn-yellow" href="/courier/map/">კურიერის რუკა</a></p>
+    </div>
+
+    <div class="panel" id="panel-owner" hidden>
+      <h2>მფლობელი / დისპეჩერი</h2>
+      <form method="post" action="{% url 'gate-login' %}">
+        {% csrf_token %}
+        <input type="hidden" name="role" value="owner">
+        <label for="owner-email">ელფოსტა</label>
+        <input id="owner-email" type="email" name="username" required autocomplete="username">
+        <label for="owner-password">პაროლი</label>
+        <input id="owner-password" type="password" name="password" required autocomplete="current-password">
+        <button class="btn-blue" type="submit">შესვლა</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+  const buttons = Array.from(document.querySelectorAll(".roles button"));
+  const panels = {
+    shop: document.getElementById("panel-shop"),
+    courier: document.getElementById("panel-courier"),
+    owner: document.getElementById("panel-owner"),
+  };
+  function pick(role) {
+    buttons.forEach((btn) => btn.classList.toggle("active", btn.dataset.role === role));
+    Object.entries(panels).forEach(([key, panel]) => { panel.hidden = key !== role; });
+  }
+  buttons.forEach((btn) => btn.addEventListener("click", () => pick(btn.dataset.role)));
+  const wanted = new URLSearchParams(window.location.search).get("role");
+  if (wanted && panels[wanted]) pick(wanted);
+</script>
+{% endblock %}

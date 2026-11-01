@@ -3,6 +3,7 @@
 from django.db import IntegrityError, transaction
 
 from apps.clients.models import PickupPoint
+from apps.core.geo import city_center
 from apps.core.models import Address
 from apps.shipments.models import Shipment
 
@@ -86,14 +87,19 @@ def _insert(client, source, payload, external_id, created_by) -> Shipment:
 
 
 def _create_address(data: dict) -> Address:
+    city = data["city"].strip()
+    latitude = data.get("latitude")
+    longitude = data.get("longitude")
+    if latitude is None or longitude is None:
+        latitude, longitude = city_center(city)
     return Address.objects.create(
         country=(data.get("country") or "GE").strip() or "GE",
-        city=data["city"].strip(),
+        city=city,
         line1=data["line1"].strip(),
         line2=(data.get("line2") or "").strip(),
         postal_code=(data.get("postal_code") or "").strip(),
-        latitude=data.get("latitude"),
-        longitude=data.get("longitude"),
+        latitude=latitude,
+        longitude=longitude,
         notes=(data.get("notes") or "").strip(),
     )
 

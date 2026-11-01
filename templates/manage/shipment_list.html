@@ -17,12 +17,21 @@
         <option value="{{ shop.pk }}" {% if request.GET.client == shop.pk|stringformat:"s" %}selected{% endif %}>{{ shop.name }}</option>
       {% endfor %}
     </select>
+    <select name="courier">
+      <option value="">ყველა კურიერი</option>
+      <option value="none" {% if request.GET.courier == "none" %}selected{% endif %}>დაუნიშნავი</option>
+      {% for courier in couriers %}
+        <option value="{{ courier.pk }}" {% if request.GET.courier == courier.pk|stringformat:"s" %}selected{% endif %}>
+          {{ courier.user.get_full_name|default:courier.user.email }}
+        </option>
+      {% endfor %}
+    </select>
     <button type="submit">ძიება</button>
   </form>
   <div class="card">
     <table>
       <thead>
-        <tr><th>ტრეკინგი</th><th>სტატუსი</th><th>მაღაზია</th><th>მიმღები</th><th>კურიერი</th></tr>
+        <tr><th>ტრეკინგი</th><th>სტატუსი</th><th>მაღაზია</th><th>მიმღები</th><th>გადახდა</th><th>კურიერი</th></tr>
       </thead>
       <tbody>
         {% for shipment in shipments %}
@@ -31,10 +40,11 @@
             <td><span class="badge">{{ shipment.status|ka:status_ka }}</span></td>
             <td>{{ shipment.client.name }}</td>
             <td>{{ shipment.recipient_name }}<div class="muted">{{ shipment.recipient_phone }}</div></td>
+            <td>{% if shipment.payment_type == "cod" %}{{ shipment.cod_amount }} ₾{% else %}წინასწარ{% endif %}</td>
             <td>{% if shipment.courier %}{{ shipment.courier.user.get_full_name|default:shipment.courier.user.email }}{% else %}<span class="muted">არ არის</span>{% endif %}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="5" class="muted">ამანათი ჯერ არ არის.</td></tr>
+          <tr><td colspan="6" class="muted">ამანათი ჯერ არ არის.</td></tr>
         {% endfor %}
       </tbody>
     </table>
