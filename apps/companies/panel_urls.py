@@ -11,6 +11,7 @@ from .views import (
     ManageLoginView,
     ManageLogoutView,
     ShipmentDetailView,
+    ShipmentLabelView,
     ShipmentListView,
     SwitchCompanyView,
 )
@@ -24,6 +25,7 @@ urlpatterns = [
     path("switch/", SwitchCompanyView.as_view(), name="switch-company"),
     path("shipments/", ShipmentListView.as_view(), name="shipment-list"),
     path("shipments/<uuid:pk>/", ShipmentDetailView.as_view(), name="shipment-detail"),
+    path("shipments/<uuid:pk>/label/", ShipmentLabelView.as_view(), name="shipment-label"),
     path("clients/", ClientListView.as_view(), name="client-list"),
     path("clients/new/", ClientCreateView.as_view(), name="client-create"),
     path("map/", LiveMapView.as_view(), name="live-map"),

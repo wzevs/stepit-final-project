@@ -5,6 +5,7 @@ from .views import (
     DashboardLogoutView,
     ShipmentCreateView,
     ShipmentDetailView,
+    ShipmentLabelView,
     ShipmentListView,
     SwitchShopView,
 )
@@ -18,4 +19,5 @@ urlpatterns = [
     path("shipments/", ShipmentListView.as_view(), name="shipment-list"),
     path("shipments/new/", ShipmentCreateView.as_view(), name="shipment-create"),
     path("shipments/<uuid:pk>/", ShipmentDetailView.as_view(), name="shipment-detail"),
+    path("shipments/<uuid:pk>/label/", ShipmentLabelView.as_view(), name="shipment-label"),
 ]

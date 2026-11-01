@@ -26,6 +26,8 @@ def test_map_page_is_the_courier_home(client, courier, shipment):
     assert page.status_code == 200
     assert 'id="map"' in body
     assert "/api/v1/courier" in body
+    assert "_auth_user_id" not in client.session
+    client.force_login(courier.user)
     listed = client.get("/courier/shipments/")
     assert shipment.tracking_number in listed.content.decode()
 

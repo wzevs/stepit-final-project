@@ -1,0 +1,166 @@
+{% load dashboard_tags %}
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ shipment.tracking_number }}</title>
+  {% include "includes/leaflet_base.html" %}
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 16px/1.5 "Segoe UI", sans-serif; color: #1c1e21; background: #f4f6f5; }
+    a { color: #0f6b4c; text-decoration: none; }
+    header { display: flex; align-items: center; gap: 16px; padding: 16px 8vw; background: #143d32; color: #fff; }
+    header a { color: #fff; margin-left: auto; }
+    main { padding: 28px 8vw 48px; }
+    .hero { background: #fff; border-radius: 12px; padding: 20px 22px; box-shadow: 0 8px 24px rgba(20,61,50,.08); }
+    .badge { display: inline-block; background: #e7f3ee; color: #0f6b4c; border-radius: 99px; padding: 4px 10px; }
+    .muted { color: #66706c; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 20px; margin-top: 20px; }
+    #map { height: 380px; border-radius: 12px; background: #dbe4df; }
+    .map-card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(20,61,50,.08); }
+    .map-card .hint { padding: 12px 16px; margin: 0; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
+    td { padding: 10px 14px; border-bottom: 1px solid #eee; }
+    @media (max-width: 800px) {
+      header, main { padding-left: 20px; padding-right: 20px; }
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Galaxy Express</strong>
+    <a href="/">მთავარი</a>
+  </header>
+  <main>
+    <div class="hero">
+      <p class="muted" style="margin:0 0 6px">ამანათი</p>
+      <p style="margin:0 0 8px; font-size:22px"><strong>{{ shipment.tracking_number }}</strong>
+        <span class="badge" id="status-badge">{{ shipment.status|ka:status_ka }}</span></p>
+      <p style="margin:0">{{ shipment.delivery_address.city }}, {{ shipment.delivery_address.line1 }}</p>
+      <p class="muted" id="live-hint" style="margin:8px 0 0">
+        {% if live %}კურიერი გზაშია თქვენკენ. რუკა ყოველ რამდენიმე წამში ახლდება.{% else %}ლაივ რუკა გამოჩნდება, როცა კურიერი მიიტანს ამანათს.{% endif %}
+      </p>
+    </div>
+
+    <div class="layout">
+      <div class="map-card">
+        <div id="map" role="application" aria-label="ამანათის რუკა"></div>
+        <p class="hint muted" id="updated"></p>
+      </div>
+      <div>
+        <h2 style="margin:0 0 12px; font-size:20px">ისტორია</h2>
+        {% if events %}
+          <table>
+            {% for event in events %}
+              <tr>
+                <td class="muted">{{ event.created_at|date:"d.m.Y H:i" }}</td>
+                <td>
+                  {% if event.to_status %}{{ event.to_status|ka:status_ka }}{% endif %}
+                  {% if event.note %}{% if event.to_status %} — {% endif %}{{ event.note }}{% endif %}
+                  {% if not event.to_status and not event.note %}{{ event.get_kind_display }}{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </table>
+        {% else %}
+          <p class="muted">ისტორია ჯერ არ არის.</p>
+        {% endif %}
+      </div>
+    </div>
+  </main>
+  <script>
+  (function () {
+    const LIVE_URL = "{% url 'tracking:public-live' token=token %}";
+    const TBILISI = [41.7151, 44.8271];
+    const map = L.map("map").setView(TBILISI, 12);
+    addBaseTiles(map);
+
+    let courierMarker = null;
+    let destMarker = null;
+    let fitted = false;
+    let timer = null;
+
+    function ageText(sec) {
+      if (sec == null) return "ლოკაცია ჯერ არ არის";
+      if (sec < 8) return "ახლა";
+      if (sec < 60) return sec + " წმ წინ";
+      return Math.floor(sec / 60) + " წთ წინ";
+    }
+
+    function setHint(data) {
+      const badge = document.getElementById("status-badge");
+      const hint = document.getElementById("live-hint");
+      badge.textContent = data.status_display || data.status;
+      if (data.live) {
+        hint.textContent = "კურიერი გზაშია თქვენკენ. რუკა ყოველ რამდენიმე წამში ახლდება.";
+      } else {
+        hint.textContent = "ლაივ რუკა გამოჩნდება, როცა კურიერი მიიტანს ამანათს.";
+      }
+    }
+
+    function draw(data) {
+      setHint(data);
+      const dest = data.delivery || {};
+      const bounds = [];
+      if (dest.latitude != null && dest.longitude != null) {
+        const here = [dest.latitude, dest.longitude];
+        bounds.push(here);
+        if (destMarker) destMarker.setLatLng(here);
+        else destMarker = L.circleMarker(here, {
+          radius: 8, color: "#143d32", fillColor: "#0f6b4c", fillOpacity: 1
+        }).addTo(map).bindPopup("მიწოდების მისამართი");
+      }
+      const courier = data.live ? data.courier : null;
+      if (courier && courier.latitude != null && courier.longitude != null) {
+        const here = [courier.latitude, courier.longitude];
+        bounds.push(here);
+        const html = "კურიერი<br>" + ageText(courier.age_sec);
+        if (courierMarker) {
+          courierMarker.setLatLng(here);
+          courierMarker.setPopupContent(html);
+          courierMarker.setStyle({fillColor: courier.stale ? "#9aa39e" : "#3d8bfd"});
+        } else {
+          courierMarker = L.circleMarker(here, {
+            radius: 9, color: "#143d32", fillColor: courier.stale ? "#9aa39e" : "#3d8bfd", fillOpacity: 1
+          }).addTo(map).bindPopup(html);
+        }
+      } else if (courierMarker) {
+        map.removeLayer(courierMarker);
+        courierMarker = null;
+      }
+      if (!fitted && bounds.length) {
+        map.fitBounds(bounds, {padding: [36, 36], maxZoom: 15});
+        fitted = true;
+      }
+      const stamp = document.getElementById("updated");
+      if (data.live && courier && courier.latitude == null) {
+        stamp.textContent = "კურიერის ლოკაცია ჯერ არ არის.";
+      } else {
+        stamp.textContent = "განახლდა " + new Date().toLocaleTimeString("ka-GE");
+      }
+    }
+
+    async function tick() {
+      try {
+        const response = await fetch(LIVE_URL, {headers: {Accept: "application/json"}});
+        if (response.status === 404) {
+          document.getElementById("live-hint").textContent = "ეს ლინკი აღარ მოქმედებს.";
+          return;
+        }
+        if (!response.ok) throw new Error("live " + response.status);
+        const data = await response.json();
+        draw(data);
+        timer = setTimeout(tick, (data.poll_interval_sec || 4) * 1000);
+      } catch (err) {
+        document.getElementById("updated").textContent = "განახლება ვერ მოხერხდა, კიდევ ვცდით.";
+        timer = setTimeout(tick, 8000);
+      }
+    }
+
+    tick();
+  })();
+  </script>
+</body>
+</html>

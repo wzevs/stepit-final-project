@@ -3,7 +3,9 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
 from apps.accounts.models import User
-from apps.clients.models import Client
+from apps.clients.models import Client, PickupPoint
+from apps.core.geo import city_center
+from apps.core.models import Address
 from apps.couriers.models import CourierProfile
 
 
@@ -14,6 +16,8 @@ class ClientCreateForm(forms.Form):
     contact_phone = forms.CharField(max_length=20, required=False, label="ტელეფონი")
     contact_email = forms.EmailField(required=False, label="ელფოსტა")
     api_enabled = forms.BooleanField(required=False, label="API წვდომა")
+    pickup_city = forms.CharField(max_length=100, required=False, label="აღება: ქალაქი")
+    pickup_line1 = forms.CharField(max_length=255, required=False, label="აღება: მისამართი")
 
     def __init__(self, *args, company, **kwargs):
         self.company = company
@@ -25,9 +29,17 @@ class ClientCreateForm(forms.Form):
             raise forms.ValidationError("ეს კოდი უკვე გამოყენებულია.")
         return code
 
+    def clean(self):
+        cleaned = super().clean()
+        city = (cleaned.get("pickup_city") or "").strip()
+        line1 = (cleaned.get("pickup_line1") or "").strip()
+        if (city and not line1) or (line1 and not city):
+            raise forms.ValidationError("აღების ქალაქი და მისამართი ერთად შეავსეთ.")
+        return cleaned
+
     def save(self):
         data = self.cleaned_data
-        return Client.objects.create(
+        client = Client.objects.create(
             company=self.company,
             name=data["name"].strip(),
             code=data["code"],
@@ -36,6 +48,13 @@ class ClientCreateForm(forms.Form):
             contact_email=(data.get("contact_email") or "").strip(),
             api_enabled=bool(data.get("api_enabled")),
         )
+        city = (data.get("pickup_city") or "").strip()
+        line1 = (data.get("pickup_line1") or "").strip()
+        if city and line1:
+            lat, lng = city_center(city)
+            address = Address.objects.create(city=city, line1=line1, latitude=lat, longitude=lng)
+            PickupPoint.objects.create(client=client, name="მთავარი", address=address, is_default=True)
+        return client
 
 
 class CourierCreateForm(forms.Form):

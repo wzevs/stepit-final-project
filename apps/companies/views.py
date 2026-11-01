@@ -10,9 +10,18 @@ from django.views.generic import ListView, TemplateView
 
 from apps.clients.models import Client
 from apps.couriers.models import CourierProfile
-from apps.shipments.labels import STATUS_KA
+from apps.shipments.labels import PAYMENT_KA, STATUS_KA
 from apps.shipments.models import Shipment
-from apps.shipments.services import REASSIGNABLE, ShipmentError, assign_courier, unassign_courier
+from apps.shipments.services import (
+    REASSIGNABLE,
+    InvalidTransition,
+    ShipmentError,
+    allowed_next,
+    assign_courier,
+    transition,
+    unassign_courier,
+)
+from apps.tracking.services import issue_staff_tracking_url
 
 from .forms import ClientCreateForm, CourierCreateForm
 from .live import live_couriers
@@ -52,6 +61,7 @@ class CompanyMixin(LoginRequiredMixin):
             "memberships": self.memberships,
             "can_manage": self.can_manage,
             "status_ka": STATUS_KA,
+            "payment_ka": PAYMENT_KA,
         }
 
     def forbid_viewer(self, request):
@@ -95,6 +105,11 @@ class ShipmentListView(CompanyMixin, ListView):
         client_id = self.request.GET.get("client")
         if client_id:
             qs = qs.filter(client_id=client_id)
+        courier_id = self.request.GET.get("courier")
+        if courier_id == "none":
+            qs = qs.filter(courier__isnull=True)
+        elif courier_id:
+            qs = qs.filter(courier_id=courier_id)
         query = (self.request.GET.get("q") or "").strip()
         if query:
             qs = qs.filter(
@@ -109,6 +124,9 @@ class ShipmentListView(CompanyMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["clients"] = Client.objects.filter(company=self.company, is_active=True)
+        context["couriers"] = CourierProfile.objects.filter(
+            company=self.company, is_active=True
+        ).select_related("user")
         return context
 
 
@@ -122,23 +140,34 @@ class ShipmentDetailView(CompanyMixin, View):
         if denied:
             return denied
         shipment = self._shipment(pk)
-        courier_id = (request.POST.get("courier_id") or "").strip()
+        intent = request.POST.get("intent") or "assign"
         note = (request.POST.get("note") or "").strip()
         try:
-            if not courier_id:
-                unassign_courier(shipment, actor=request.user, note=note)
-                messages.success(request, "კურიერი მოხსნილია.")
+            if intent == "cancel":
+                transition(shipment, Shipment.Status.CANCELLED, actor=request.user, note=note)
+                messages.success(request, "ამანათი გაუქმდა.")
+            elif intent == "return":
+                transition(shipment, Shipment.Status.RETURNED, actor=request.user, note=note)
+                messages.success(request, "ამანათი დაბრუნებულია გამგზავნთან.")
+            elif intent == "tracking_link":
+                request.session["tracking_url"] = issue_staff_tracking_url(shipment)
+                messages.success(request, "მიმღების ლინკი მზადაა. დააკოპირეთ ქვემოთ.")
             else:
-                courier = get_object_or_404(
-                    CourierProfile, pk=courier_id, company=self.company, is_active=True
-                )
-                if shipment.status not in REASSIGNABLE:
-                    messages.error(request, "ამ სტატუსზე კურიერის შეცვლა არ შეიძლება.")
+                courier_id = (request.POST.get("courier_id") or "").strip()
+                if not courier_id:
+                    unassign_courier(shipment, actor=request.user, note=note)
+                    messages.success(request, "კურიერი მოხსნილია.")
                 else:
-                    assign_courier(shipment, courier, actor=request.user, note=note)
-                    messages.success(request, "კურიერი დანიშნულია.")
-        except ShipmentError:
-            messages.error(request, "კურიერის შეცვლა ვერ მოხერხდა.")
+                    courier = get_object_or_404(
+                        CourierProfile, pk=courier_id, company=self.company, is_active=True
+                    )
+                    if shipment.status not in REASSIGNABLE:
+                        messages.error(request, "ამ სტატუსზე კურიერის შეცვლა არ შეიძლება.")
+                    else:
+                        assign_courier(shipment, courier, actor=request.user, note=note)
+                        messages.success(request, "კურიერი დანიშნულია.")
+        except (InvalidTransition, ShipmentError):
+            messages.error(request, "ეს მოქმედება ამ სტატუსზე არ შეიძლება.")
         return redirect("manage:shipment-detail", pk=shipment.pk)
 
     def _shipment(self, pk):
@@ -151,6 +180,7 @@ class ShipmentDetailView(CompanyMixin, View):
     def _context(self, shipment):
         couriers = CourierProfile.objects.filter(company=self.company, is_active=True).select_related("user")
         context = self._base_context()
+        tracking_url = self.request.session.pop("tracking_url", "")
         context.update(
             {
                 "shipment": shipment,
@@ -158,6 +188,10 @@ class ShipmentDetailView(CompanyMixin, View):
                 "couriers": couriers,
                 "can_assign": self.can_manage and shipment.status in REASSIGNABLE,
                 "can_unassign": self.can_manage and shipment.status == Shipment.Status.ASSIGNED,
+                "can_cancel": self.can_manage and Shipment.Status.CANCELLED in allowed_next(shipment.status),
+                "can_return": self.can_manage and Shipment.Status.RETURNED in allowed_next(shipment.status),
+                "can_share_tracking": self.can_manage,
+                "tracking_url": tracking_url,
             }
         )
         return context
@@ -194,6 +228,19 @@ class ClientCreateView(CompanyMixin, View):
         client = form.save()
         messages.success(request, f"მაღაზია დაემატა: {client.name}")
         return redirect("manage:client-list")
+
+
+class ShipmentLabelView(CompanyMixin, View):
+    def get(self, request, pk):
+        shipment = self._shipment(pk)
+        return render(request, "shipments/label.html", {**self._base_context(), "shipment": shipment})
+
+    def _shipment(self, pk):
+        return get_object_or_404(
+            Shipment.objects.select_related("client", "pickup_address", "delivery_address", "company"),
+            pk=pk,
+            company=self.company,
+        )
 
 
 class LiveMapView(CompanyMixin, TemplateView):

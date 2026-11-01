@@ -54,6 +54,7 @@ def test_manual_create_and_detail(client, shop_user, client_shop):
 
     page = client.get(response.url)
     assert shipment.tracking_number in page.content.decode()
+    assert shipment.delivery_address.latitude is not None
 
 
 def test_repeat_order_number_opens_the_existing_shipment(client, shop_user):
@@ -103,3 +104,18 @@ def test_form_requires_a_pickup(client, shop_user):
     )
     assert response.status_code == 200
     assert Shipment.objects.count() == 0
+
+
+def test_shop_cancels_and_copies_tracking_link(client, shop_user, shipment):
+    client.force_login(shop_user)
+    detail = reverse("dashboard:shipment-detail", args=[shipment.pk])
+    link = client.post(detail, {"intent": "tracking_link"})
+    assert link.status_code == 302
+    page = client.get(detail)
+    assert "/t/" in page.content.decode()
+    assert client.get(reverse("dashboard:shipment-label", args=[shipment.pk])).status_code == 200
+
+    cancelled = client.post(detail, {"intent": "cancel"})
+    assert cancelled.status_code == 302
+    shipment.refresh_from_db()
+    assert shipment.status == Shipment.Status.CANCELLED
