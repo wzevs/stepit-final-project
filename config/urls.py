@@ -16,6 +16,7 @@ urlpatterns = [
     path("dashboard/", include("apps.clients.dashboard_urls")),
     path("manage/", include("apps.companies.panel_urls")),
     path("courier/", include("apps.couriers.portal_urls")),
+    path("t/", include("apps.tracking.urls")),
 ]
 
 if settings.DEBUG:

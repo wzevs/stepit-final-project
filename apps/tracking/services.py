@@ -7,9 +7,13 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from apps.couriers.models import CourierProfile
+from apps.shipments.labels import STATUS_KA
 from apps.shipments.models import Shipment
 
 from .models import CourierLocation, TrackingToken
+
+PUBLIC_POLL_SECONDS = 4
+STALE_AFTER_SEC = 120
 
 # GPS fixes noisier than this are dropped. The rest of the batch is kept.
 MAX_ACCURACY_M = 200
@@ -20,6 +24,47 @@ MAX_POINTS_PER_REQUEST = 100
 
 def build_tracking_url(raw_token: str) -> str:
     return f"{settings.PUBLIC_BASE_URL}/t/{raw_token}/"
+
+
+def _coord(value):
+    return float(value) if value is not None else None
+
+
+def public_live_payload(shipment: Shipment) -> dict:
+    """
+    Recipient-safe snapshot for the public tracking page and its poll endpoint.
+    Courier coordinates are included only while the parcel is out for delivery.
+    """
+    now = timezone.now()
+    address = shipment.delivery_address
+    courier = shipment.courier if shipment.is_live_trackable else None
+    courier_payload = None
+    if courier is not None:
+        age = None
+        if courier.last_location_at is not None:
+            age = max(0, int((now - courier.last_location_at).total_seconds()))
+        courier_payload = {
+            "latitude": _coord(courier.last_latitude),
+            "longitude": _coord(courier.last_longitude),
+            "age_sec": age,
+            "stale": age is None or age > STALE_AFTER_SEC,
+        }
+
+    return {
+        "tracking_number": shipment.tracking_number,
+        "status": shipment.status,
+        "status_display": STATUS_KA.get(shipment.status, shipment.status),
+        "live": bool(shipment.is_live_trackable),
+        "poll_interval_sec": PUBLIC_POLL_SECONDS,
+        "delivery": {
+            "city": address.city,
+            "line1": address.line1,
+            "latitude": _coord(address.latitude),
+            "longitude": _coord(address.longitude),
+        },
+        "courier": courier_payload,
+        "server_time": now.isoformat(),
+    }
 
 
 def cap_token_expiry(shipment: Shipment, hours: int | None = None) -> int:

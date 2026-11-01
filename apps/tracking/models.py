@@ -94,9 +94,9 @@ class TrackingToken(TimeStampedModel):
     @classmethod
     def resolve(cls, raw: str) -> "TrackingToken | None":
         try:
-            token = cls.objects.select_related("shipment", "shipment__courier").get(
-                token_hash=cls.hash_token(raw)
-            )
+            token = cls.objects.select_related(
+                "shipment", "shipment__courier", "shipment__delivery_address", "shipment__company"
+            ).get(token_hash=cls.hash_token(raw))
         except cls.DoesNotExist:
             return None
         return token if token.is_valid else None

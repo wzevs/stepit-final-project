@@ -15,6 +15,8 @@ This is the front door. It joins the pages that already exist:
 
 Shop staff land on /dashboard/shipments/. Couriers land on /courier/map/. Company members (owner, dispatcher, or viewer) land on /manage/shipments/. A wrong role or a bad password does not sign the user in. The public tracking result shows the status, the address, and the public event history. It does not show the recipient phone.
 
+A recipient SMS/email link opens http://127.0.0.1:8000/t/<token>/. That page is the same public snapshot, plus a live map while the parcel is out for delivery. The raw token is not stored; a dead, expired, or unknown link returns 404.
+
 
 ## Stack
 
@@ -77,7 +79,9 @@ Courier-company staff can also sign in at http://127.0.0.1:8000/manage/login/.
 They need a CompanyMembership. Owners and dispatchers register shops and couriers and assign parcels.
 Viewers can look, but cannot change anything.
 
-The live map is http://127.0.0.1:8000/manage/map/. It polls /manage/live/ every few seconds and moves the courier pin when a new GPS point arrives. This is polling, not WebSockets; that is enough to watch a courier during a delivery. Open it in a separate browser from the courier tabs so the session cookie is not overwritten. Recipient live tracking on a public link comes later.
+The live map is http://127.0.0.1:8000/manage/map/. It polls /manage/live/ every few seconds and moves the courier pin when a new GPS point arrives. This is polling, not WebSockets; that is enough to watch a courier during a delivery. Open it in a separate browser from the courier tabs so the session cookie is not overwritten.
+
+Recipient live tracking is the public page /t/<token>/. It polls /t/<token>/live/ and shows the courier pin only in out_for_delivery. Delivery address is always on the map when it is geocoded. Courier name, email, and the recipient phone stay off that page.
 
 ## Courier map
 
