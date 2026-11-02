@@ -3,7 +3,7 @@
 from django.db import IntegrityError, transaction
 
 from apps.clients.models import PickupPoint
-from apps.core.geo import city_center
+from apps.core.geo import geocode
 from apps.core.models import Address
 from apps.shipments.models import Shipment
 
@@ -91,7 +91,7 @@ def _create_address(data: dict) -> Address:
     latitude = data.get("latitude")
     longitude = data.get("longitude")
     if latitude is None or longitude is None:
-        latitude, longitude = city_center(city)
+        latitude, longitude = geocode(city, data.get("line1") or "")
     return Address.objects.create(
         country=(data.get("country") or "GE").strip() or "GE",
         city=city,

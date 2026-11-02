@@ -60,6 +60,7 @@
   const parcelMarkers = {};
   let watchId = null;
   let refreshing = null;
+  let pinTarget = null;
 
   function accessToken() { return sessionStorage.getItem(ACCESS_KEY); }
   function refreshToken() { return sessionStorage.getItem(REFRESH_KEY); }
@@ -199,13 +200,28 @@
     const maps = item.delivery_address.maps_url
       ? "<a href=\"" + item.delivery_address.maps_url + "\" target=\"_blank\" rel=\"noreferrer\">ნავიგაცია</a>"
       : "";
+    const missingPickup = !latLng(item.pickup_address);
+    const missingDrop = !latLng(item.delivery_address);
+    const pinHint = (missingPickup || missingDrop)
+      ? "<p class=\"muted\">ქუჩა არის, პინი არა — დააჭირე დააზუსტებას, შემდეგ რუკას.</p>"
+      : "";
     box.innerHTML = "<div class=\"card\" style=\"margin-bottom:12px\">" +
       "<strong>" + item.tracking_number + "</strong> <span class=\"badge\">" + (STATUS[item.status] || item.status) + "</span>" +
       "<p>" + item.recipient_name + "<br><a href=\"tel:" + item.recipient_phone + "\">" + item.recipient_phone + "</a></p>" +
       "<p class=\"muted\">" + item.delivery_address.city + ", " + item.delivery_address.line1 + "</p>" +
-      maps + "<div class=\"actions\">" + next + "</div></div>";
+      maps + pinHint +
+      "<div class=\"actions\">" +
+      "<button type=\"button\" data-pin=\"pickup\">დააზუსტე აღება</button>" +
+      "<button type=\"button\" data-pin=\"delivery\">დააზუსტე მიწოდება</button>" +
+      next + "</div></div>";
     box.querySelectorAll("[data-status]").forEach(function (btn) {
       btn.addEventListener("click", function () { changeStatus(item.id, btn.getAttribute("data-status")); });
+    });
+    box.querySelectorAll("[data-pin]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        pinTarget = btn.getAttribute("data-pin");
+        flash("რუკაზე დააკლიკე " + (pinTarget === "pickup" ? "აღების" : "მიწოდების") + " პინისთვის.");
+      });
     });
   }
 
@@ -319,8 +335,24 @@
   });
 
   map.on("click", async function (event) {
-    if (!document.getElementById("click-send").checked) return;
     try {
+      if (pinTarget && selectedId) {
+        const which = pinTarget;
+        pinTarget = null;
+        await api("/shipments/" + selectedId + "/pin/", {
+          method: "POST",
+          body: JSON.stringify({
+            which: which,
+            latitude: Number(event.latlng.lat).toFixed(6),
+            longitude: Number(event.latlng.lng).toFixed(6),
+          }),
+        });
+        flash("ამანათის პინი შეინახა.");
+        await load();
+        select(selectedId);
+        return;
+      }
+      if (!document.getElementById("click-send").checked) return;
       await sendPoint(event.latlng.lat, event.latlng.lng, 12);
     } catch (err) {
       if (err.status === 401 || err.status === 403) showGate(true);

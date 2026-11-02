@@ -9,6 +9,7 @@ from django.views import View
 from django.views.generic import ListView, TemplateView
 
 from apps.clients.models import Client
+from apps.core.geo import set_pin
 from apps.couriers.models import CourierProfile
 from apps.shipments.labels import PAYMENT_KA, STATUS_KA
 from apps.shipments.models import Shipment
@@ -152,6 +153,22 @@ class ShipmentDetailView(CompanyMixin, View):
             elif intent == "tracking_link":
                 request.session["tracking_url"] = issue_staff_tracking_url(shipment)
                 messages.success(request, "მიმღების ლინკი მზადაა. დააკოპირეთ ქვემოთ.")
+            elif intent == "pin":
+                which = request.POST.get("which")
+                address = shipment.pickup_address if which == "pickup" else shipment.delivery_address
+                if which not in {"pickup", "delivery"}:
+                    messages.error(request, "აირჩიეთ აღება ან მიწოდება.")
+                else:
+                    try:
+                        set_pin(
+                            address,
+                            request.POST.get("latitude"),
+                            request.POST.get("longitude"),
+                        )
+                    except ValueError:
+                        messages.error(request, "რუკაზე პინი დასვით, შემდეგ შეინახეთ.")
+                    else:
+                        messages.success(request, "ლოკაცია დაზუსტდა.")
             else:
                 courier_id = (request.POST.get("courier_id") or "").strip()
                 if not courier_id:

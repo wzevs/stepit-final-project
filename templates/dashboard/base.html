@@ -35,7 +35,15 @@
     .muted { color: #667; }
     .toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
     .toolbar input { width: 220px; }
+    .pay-choice ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+    .pay-choice li { margin: 0; }
+    .pay-choice label { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; background: #fff; }
+    .pay-choice input { width: auto; }
+    .picker { margin: 0 0 16px; }
+    .picker .pick-map { height: 220px; border-radius: 8px; border: 1px solid #e3e5e8; }
+    .picker .hint { color: #667; font-size: 13px; margin: 6px 0 8px; }
   </style>
+  {% block extra_head %}{% endblock %}
 </head>
 <body>
   <header>

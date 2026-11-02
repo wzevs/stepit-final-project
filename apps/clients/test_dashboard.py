@@ -10,6 +10,13 @@ from apps.shipments.models import Shipment
 
 pytestmark = pytest.mark.django_db
 
+_PINS = {
+    "pickup_lat": "41.701111",
+    "pickup_lng": "44.801111",
+    "delivery_lat": "41.616111",
+    "delivery_lng": "41.636111",
+}
+
 
 @pytest.fixture
 def shop_user(client_shop):
@@ -45,6 +52,7 @@ def test_manual_create_and_detail(client, shop_user, client_shop):
             "recipient_name": "Nino",
             "recipient_phone": "+995555000222",
             "payment_type": "prepaid",
+            **_PINS,
         },
     )
     shipment = Shipment.objects.get()
@@ -53,10 +61,10 @@ def test_manual_create_and_detail(client, shop_user, client_shop):
     assert shipment.source == Shipment.Source.MANUAL
     assert shipment.created_by == shop_user
     assert shipment.delivery_address.city == "Batumi"
+    assert str(shipment.delivery_address.latitude) == "41.616111"
 
     page = client.get(response.url)
     assert shipment.tracking_number in page.content.decode()
-    assert shipment.delivery_address.latitude is not None
 
 
 def test_repeat_order_number_opens_the_existing_shipment(client, shop_user):
@@ -70,6 +78,7 @@ def test_repeat_order_number_opens_the_existing_shipment(client, shop_user):
         "recipient_name": "Nino",
         "recipient_phone": "+995555000222",
         "payment_type": "prepaid",
+        **_PINS,
     }
     client.post(reverse("dashboard:shipment-create"), payload)
     client.post(reverse("dashboard:shipment-create"), {**payload, "recipient_name": "Other"})
@@ -90,6 +99,74 @@ def test_other_shop_shipment_is_hidden(client, shop_user, company, address):
     )
     response = client.get(reverse("dashboard:shipment-detail", args=[shipment.pk]))
     assert response.status_code == 404
+
+
+def test_shop_form_keeps_map_pins(client, shop_user):
+    client.force_login(shop_user)
+    response = client.post(
+        reverse("dashboard:shipment-create"),
+        {
+            "pickup_city": "Tbilisi",
+            "pickup_line1": "Chavchavadze 5",
+            "delivery_city": "Batumi",
+            "delivery_line1": "Rustaveli 2",
+            "recipient_name": "Nino",
+            "recipient_phone": "+995555000222",
+            "payment_type": "prepaid",
+            **_PINS,
+        },
+    )
+    shipment = Shipment.objects.select_related("pickup_address", "delivery_address").get()
+    assert response.status_code == 302
+    assert str(shipment.pickup_address.latitude) == "41.701111"
+    assert str(shipment.delivery_address.latitude) == "41.616111"
+
+
+def test_shop_can_mark_cash_on_delivery(client, shop_user):
+    client.force_login(shop_user)
+    response = client.post(
+        reverse("dashboard:shipment-create"),
+        {
+            "pickup_city": "Tbilisi",
+            "pickup_line1": "Chavchavadze 5",
+            "delivery_city": "Batumi",
+            "delivery_line1": "Rustaveli 2",
+            "recipient_name": "Nino",
+            "recipient_phone": "+995555000222",
+            "payment_type": "cod",
+            "cod_amount": "18.50",
+            **_PINS,
+        },
+    )
+    shipment = Shipment.objects.get()
+    assert response.status_code == 302
+    assert shipment.payment_type == Shipment.PaymentType.COD
+    assert str(shipment.cod_amount) == "18.50"
+    page = client.get(reverse("dashboard:shipment-create"))
+    body = page.content.decode()
+    assert "ნაღდი ადგილზე" in body
+    assert 'name="payment_type"' in body
+    assert 'id="pickup-map"' in body
+    assert 'id="delivery-map"' in body
+
+
+def test_form_requires_pins(client, shop_user):
+    client.force_login(shop_user)
+    response = client.post(
+        reverse("dashboard:shipment-create"),
+        {
+            "pickup_city": "Tbilisi",
+            "pickup_line1": "Chavchavadze 5",
+            "delivery_city": "Batumi",
+            "delivery_line1": "Rustaveli 2",
+            "recipient_name": "Nino",
+            "recipient_phone": "+995555000222",
+            "payment_type": "prepaid",
+        },
+    )
+    assert response.status_code == 200
+    assert Shipment.objects.count() == 0
+    assert "პინი" in response.content.decode()
 
 
 def test_form_requires_a_pickup(client, shop_user):

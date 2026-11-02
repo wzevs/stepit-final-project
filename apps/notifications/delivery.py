@@ -1,7 +1,6 @@
 """
 Deliver queued Notification rows. The request path only writes the outbox;
-this module is what actually sends (SMTP email, uBill SMS, Telegram to the log
-until a provider is configured).
+this module is what actually sends (SMTP email, uBill SMS).
 """
 
 import json
@@ -115,9 +114,6 @@ def _send(note: Notification) -> str:
             return send_ubill_sms(note.recipient, note.body)
         logger.info("SMS to %s: %s", note.recipient, note.body)
         return "console-sms"
-    if note.channel == Notification.Channel.TELEGRAM:
-        logger.info("Telegram to %s: %s", note.recipient, note.body)
-        return "console-telegram"
     raise ValueError(f"Unknown channel {note.channel}")
 
 

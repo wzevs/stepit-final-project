@@ -5,6 +5,7 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.clients.models import Client, PickupPoint
 from apps.companies.models import CompanyMembership
+from apps.core.models import Address
 from apps.couriers.models import CourierProfile
 from apps.shipments.models import Shipment
 from apps.shipments.services import assign_courier, transition
@@ -107,13 +108,60 @@ def test_dispatcher_registers_shop_with_pickup_point(client, manager, company):
             "code": "CAFE",
             "pickup_city": "Tbilisi",
             "pickup_line1": "Rustaveli 10",
+            "pickup_lat": "41.701111",
+            "pickup_lng": "44.801111",
         },
     )
     assert response.status_code == 302
     shop = Client.objects.get(company=company, code="CAFE")
     point = PickupPoint.objects.get(client=shop)
     assert point.is_default is True
-    assert point.address.latitude is not None
+    assert point.address.line1 == "Rustaveli 10"
+    assert str(point.address.latitude) == "41.701111"
+
+
+def test_dispatcher_sets_missing_delivery_pin(client, manager, company, client_shop):
+    pickup = Address.objects.create(city="Tbilisi", line1="Chavchavadze 5")
+    delivery = Address.objects.create(city="Tbilisi", line1="Unknown alley 12")
+    shipment = Shipment.objects.create(
+        company=company,
+        client=client_shop,
+        pickup_address=pickup,
+        delivery_address=delivery,
+        recipient_name="Nino",
+        recipient_phone="+995555000000",
+    )
+    client.force_login(manager)
+    response = client.post(
+        reverse("manage:shipment-detail", args=[shipment.pk]),
+        {
+            "intent": "pin",
+            "which": "delivery",
+            "latitude": "41.701111",
+            "longitude": "44.801111",
+        },
+    )
+    assert response.status_code == 302
+    delivery.refresh_from_db()
+    pickup.refresh_from_db()
+    assert str(delivery.latitude) == "41.701111"
+    assert pickup.latitude is None
+
+
+def test_shop_pickup_point_requires_a_pin(client, manager, company):
+    client.force_login(manager)
+    response = client.post(
+        reverse("manage:client-create"),
+        {
+            "name": "Cafe",
+            "code": "NOPIN",
+            "pickup_city": "Tbilisi",
+            "pickup_line1": "Rustaveli 10",
+        },
+    )
+    assert response.status_code == 200
+    assert not Client.objects.filter(code="NOPIN").exists()
+    assert "პინი" in response.content.decode()
 
 
 def test_dispatcher_cancels_returns_and_shares_link(client, manager, shipment, courier):

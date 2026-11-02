@@ -9,7 +9,7 @@
   <div id="map" role="application" aria-label="კურიერების ლაივ რუკა"></div>
   <aside class="panel">
     <h2>ლაივი</h2>
-    <p class="hint">კურიერის ტელეფონი ან სატესტო რუკა ლოკაციას აგზავნის, აქ კი ყოველ რამდენიმე წამში ახლდება. ეს ჯერ polling-ია, არა WebSocket.</p>
+    <p class="hint">კურიერის პინი ახლდება WebSocket-ით, როგორც კი GPS მოვა. თუ კავშირი გაწყდა, რუკა ისევ რამდენიმე წამში იკითხავს.</p>
     <div id="updated" class="muted"></div>
     <h2>კურიერები</h2>
     <div id="list"></div>
@@ -100,20 +100,33 @@
     renderList(couriers);
   }
 
+  function applyLive(data) {
+    draw(data.couriers || []);
+    document.getElementById("updated").textContent = "განახლდა " + new Date().toLocaleTimeString("ka-GE");
+  }
+
   async function tick() {
     const response = await fetch("/manage/live/", {credentials: "same-origin", headers: {Accept: "application/json"}});
     if (!response.ok) throw new Error("live " + response.status);
     const data = await response.json();
-    draw(data.couriers || []);
-    const stamp = document.getElementById("updated");
-    stamp.textContent = "განახლდა " + new Date().toLocaleTimeString("ka-GE");
-    const wait = (data.poll_interval_sec || 4) * 1000;
-    timer = setTimeout(tick, wait);
+    applyLive(data);
+    timer = setTimeout(tick, (data.poll_interval_sec || 4) * 1000);
   }
 
-  tick().catch(function (err) {
-    document.getElementById("updated").textContent = err.message;
-  });
+  function listenSocket() {
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    const socket = new WebSocket(proto + "//" + location.host + "/ws/manage/live/");
+    socket.onmessage = function (event) {
+      applyLive(JSON.parse(event.data));
+    };
+    socket.onclose = function () {
+      tick().catch(function (err) {
+        document.getElementById("updated").textContent = err.message;
+      });
+    };
+  }
+
+  listenSocket();
 })();
 </script>
 {% endblock %}
