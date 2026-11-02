@@ -35,17 +35,32 @@ def issue_staff_tracking_url(shipment: Shipment) -> str:
     return build_tracking_url(raw)
 
 
+def issue_party_tracking_urls(shipment: Shipment) -> tuple[str, str]:
+    """Separate map links for the sender and the recipient. Both stay valid."""
+    _, sender_raw = TrackingToken.issue(shipment, sent_via="sender", revoke_existing=False)
+    _, recipient_raw = TrackingToken.issue(shipment, sent_via="recipient", revoke_existing=False)
+    return build_tracking_url(sender_raw), build_tracking_url(recipient_raw)
+
+
 def _coord(value):
     return float(value) if value is not None else None
 
 
+def _address_payload(address) -> dict:
+    return {
+        "city": address.city,
+        "line1": address.line1,
+        "latitude": _coord(address.latitude),
+        "longitude": _coord(address.longitude),
+    }
+
+
 def public_live_payload(shipment: Shipment) -> dict:
     """
-    Recipient-safe snapshot for the public tracking page and its poll endpoint.
-    Courier coordinates are included only while the parcel is out for delivery.
+    Public snapshot for the tracking page. Courier coordinates are included
+    only while is_live_trackable. Walk-in parcels also expose the pickup pin.
     """
     now = timezone.now()
-    address = shipment.delivery_address
     courier = shipment.courier if shipment.is_live_trackable else None
     courier_payload = None
     if courier is not None:
@@ -59,18 +74,18 @@ def public_live_payload(shipment: Shipment) -> dict:
             "stale": age is None or age > STALE_AFTER_SEC,
         }
 
+    pickup = None
+    if shipment.is_walk_in:
+        pickup = _address_payload(shipment.pickup_address)
+
     return {
         "tracking_number": shipment.tracking_number,
         "status": shipment.status,
         "status_display": STATUS_KA.get(shipment.status, shipment.status),
         "live": bool(shipment.is_live_trackable),
         "poll_interval_sec": PUBLIC_POLL_SECONDS,
-        "delivery": {
-            "city": address.city,
-            "line1": address.line1,
-            "latitude": _coord(address.latitude),
-            "longitude": _coord(address.longitude),
-        },
+        "pickup": pickup,
+        "delivery": _address_payload(shipment.delivery_address),
         "courier": courier_payload,
         "server_time": now.isoformat(),
     }

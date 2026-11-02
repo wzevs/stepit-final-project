@@ -37,14 +37,39 @@
   .track input[type="search"] {
     flex: 1 1 auto; min-width: 0; font: inherit; padding: 12px 14px; border: 1px solid #cfd6e4; border-radius: 8px;
   }
-  .cards { width: min(1180px, calc(100% - 40px)); margin: 36px auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-  .cards article {
-    background: #fff; border-radius: 8px; padding: 28px 24px 32px; text-align: center;
-    box-shadow: 0 8px 24px rgba(11, 29, 74, .08);
+  .offer { width: min(1180px, calc(100% - 40px)); margin: 56px auto 8px; text-align: center; }
+  .offer > h2 { font-size: 32px; margin: 0 0 8px; }
+  .offer > .lead { margin: 0 auto 28px; max-width: 640px; color: var(--muted); }
+  .offer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; text-align: left; }
+  .offer-grid article {
+    background: var(--yellow); color: #111; border-radius: 28px; padding: 28px 28px 32px; min-height: 180px;
   }
-  .cards .icon { font-size: 42px; color: var(--blue); margin-bottom: 8px; }
-  .cards h3 { margin: 0 0 8px; }
-  .cards p { margin: 0; color: var(--muted); }
+  .offer-grid .icon {
+    width: 56px; height: 40px; margin-bottom: 18px; color: var(--blue);
+  }
+  .offer-grid .icon svg { width: 56px; height: 36px; display: block; }
+  .offer-grid h3 { margin: 0 0 8px; font-size: 22px; line-height: 1.25; }
+  .offer-grid p { margin: 0; font-size: 15px; line-height: 1.45; color: #333; }
+  .how { width: min(1180px, calc(100% - 40px)); margin: 48px auto 8px; text-align: center; }
+  .how > h2 { font-size: 32px; margin: 0 0 8px; }
+  .how > .lead { margin: 0 auto 32px; max-width: 640px; color: var(--muted); }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; text-align: left; }
+  .steps article {
+    background: #fff; border-radius: 12px; padding: 22px 20px 24px;
+    box-shadow: 0 8px 24px rgba(11, 29, 74, .08); position: relative;
+  }
+  .steps .num {
+    width: 40px; height: 40px; border-radius: 50%; background: var(--blue); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 800; margin-bottom: 12px;
+  }
+  .steps h3 { margin: 0 0 8px; font-size: 18px; }
+  .steps p { margin: 0; color: var(--muted); font-size: 15px; }
+  .audiences { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 28px; text-align: left; }
+  .audiences article {
+    background: var(--bg); border-radius: 12px; padding: 24px 24px 28px; border: 1px solid var(--line);
+  }
+  .audiences h3 { margin: 0 0 8px; }
+  .audiences p { margin: 0 0 16px; color: var(--muted); }
   .about { width: min(1180px, calc(100% - 40px)); margin: 24px auto 0; padding: 8px 0 24px; }
   .about h2 { font-size: 28px; margin: 0 0 12px; }
   .about p { max-width: 720px; color: var(--muted); }
@@ -58,7 +83,7 @@
     .slide h1 { font-size: 30px; }
     .slide .copy { padding-bottom: 72px; }
     .track form { flex-direction: column; }
-    .cards { grid-template-columns: 1fr; }
+    .offer-grid, .steps, .audiences { grid-template-columns: 1fr; }
     .slider-nav, .arrows { bottom: 80px; }
   }
 </style>
@@ -77,8 +102,8 @@
     <div class="slide s2">
       <div class="wrap">
         <div class="copy">
-          <h1>დაამატე შენი მაღაზია</h1>
-          <p>გაყიდვები API-ს მეშვეობით პირდაპირ მიწოდებას მიაბი.</p>
+          <h1>მაღაზიის კაბინეტი</h1>
+          <p>შეკვეთები ხელით ან API-ით. ანგარიშს კომპანია გიქმნის, შემდეგ შედი აქ.</p>
           <a class="btn-yellow" href="{% url 'gate-login' %}">მაღაზიის კაბინეტი</a>
         </div>
       </div>
@@ -129,27 +154,101 @@
     {% endif %}
   </div>
 
-  <section class="cards" id="services">
-    <article>
-      <div class="icon" aria-hidden="true">⌕</div>
-      <h3>ტრეკინგი</h3>
-      <p>სტატუსი და ისტორია ტრეკინგის ნომრით, შესვლის გარეშე.</p>
-    </article>
-    <article>
-      <div class="icon" aria-hidden="true">▣</div>
-      <h3>მაღაზია და API</h3>
-      <p>შეკვეთა ხელით ან თქვენი პროგრამიდან. ერთი external_id ორჯერ არ შეიქმნება.</p>
-    </article>
-    <article>
-      <div class="icon" aria-hidden="true">▹</div>
-      <h3>კურიერის რუკა</h3>
-      <p>GPS და სტატუსები ცოცხალ რუკაზე. შესვლა ცალკე გვერდიდან.</p>
-    </article>
+  <section class="offer" id="services">
+    <h2>რას გთავაზობთ</h2>
+    <p class="lead">სერვისები ფიზიკური პირისთვის და მაღაზიისთვის — მთელი ქვეყნის მასშტაბით.</p>
+    <div class="offer-grid">
+      <article>
+        <div class="icon" aria-hidden="true">
+          <svg viewBox="0 0 64 36" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 22c8-12 16-12 24 0s16 12 24 0"/>
+            <circle cx="16" cy="22" r="3.5"/>
+            <circle cx="48" cy="22" r="3.5"/>
+            <path d="M28 8h8l4 8H24l4-8z"/>
+          </svg>
+        </div>
+        <h3>მიწოდება მთელი ქვეყნის მასშტაბით</h3>
+        <p>ამანათს ვიღებთ და ვაბარებთ საქართველოს ნებისმიერ ქალაქში — სახლიდან ან მაღაზიიდან.</p>
+      </article>
+      <article>
+        <div class="icon" aria-hidden="true">
+          <svg viewBox="0 0 64 36" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 28V14l12-8 12 8v14"/>
+            <path d="M20 28v-8h8v8"/>
+            <path d="M40 20h16v8H40z"/>
+            <path d="M44 20v-4h8v4"/>
+          </svg>
+        </div>
+        <h3>კარიდან კარამდე მიტანა</h3>
+        <p>კურიერი მოვა აღებაზე და მიიტანს მიმღებამდე. სტატუსს ტრეკინგის ნომრით ნახავ.</p>
+      </article>
+      <article>
+        <div class="icon" aria-hidden="true">
+          <svg viewBox="0 0 64 36" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="10" width="22" height="16" rx="2"/>
+            <rect x="32" y="6" width="26" height="24" rx="2"/>
+            <path d="M12 18h10M38 14h14M38 20h10"/>
+          </svg>
+        </div>
+        <h3>სტანდარტული ამანათები და ყუთები</h3>
+        <p>ვიღებთ ჩვეულებრივ პაკეტსა და ყუთს. გაბარიტული ტვირთი ამ სერვისში არ შედის.</p>
+      </article>
+      <article>
+        <div class="icon" aria-hidden="true">
+          <svg viewBox="0 0 64 36" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 8h24l8 8v16H12V8z"/>
+            <path d="M36 8v8h8"/>
+            <path d="M20 22h16M20 27h10"/>
+          </svg>
+        </div>
+        <h3>თანხა ადგილზე (COD)</h3>
+        <p>მაღაზიის შეკვეთაზე მიმღები იხდის კურიერთან. თანხა ამანათზე იწერება. პიროვნებას შორის გაგზავნა ჯერ წინასწარ გადახდილია.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="how" id="how">
+    <h2>როგორ მუშაობს</h2>
+    <p class="lead">მარტივი პროცესი ამანათის გასაგზავნად. ფიზიკურ პირს რთული რეგისტრაცია არ სჭირდება — მხოლოდ მოკლე ფორმა.</p>
+    <div class="steps">
+      <article>
+        <div class="num">1</div>
+        <h3>შეკვეთის გაფორმება</h3>
+        <p>შეავსე ონლაინ ფორმა: საიდან, სად და ვის. ანგარიში არ გჭირდება.</p>
+      </article>
+      <article>
+        <div class="num">2</div>
+        <h3>ამანათის აღება</h3>
+        <p>კურიერი მოვა შენს მისამართზე და აიღებს ამანათს.</p>
+      </article>
+      <article>
+        <div class="num">3</div>
+        <h3>ტრანსპორტირება</h3>
+        <p>გზაში სტატუსს ტრეკინგის ნომრით ნახავ მთავარ გვერდზე.</p>
+      </article>
+      <article>
+        <div class="num">4</div>
+        <h3>ჩაბარება</h3>
+        <p>მიმღები იღებს ამანათს. პირადი ლინკით შეიძლება ლაივ რუკაც.</p>
+      </article>
+    </div>
+    <div class="audiences">
+      <article>
+        <h3>ფიზიკური პირი</h3>
+        <p>გაგზავნე ახლავე, ყოველგვარი კაბინეტისა და API-ის გარეშე. ტრეკინგის ნომერს მაშინვე მიიღებ.</p>
+        <a class="btn-yellow" href="{% url 'guest-send' %}">გაგზავნა</a>
+      </article>
+      <article>
+        <h3>მაღაზია</h3>
+        <p>ბევრი შეკვეთა გაქვს? შედი კაბინეტში ან მიაბი გაყიდვები API-ს — გასაღებს კომპანია გაძლევს.</p>
+        <a class="btn-blue" href="{% url 'gate-login' %}">მაღაზიის შესვლა</a>
+      </article>
+    </div>
   </section>
 
   <section class="about" id="about">
     <h2>ჩვენს შესახებ</h2>
-    <p>Galaxy Express არის საკურიერო პლატფორმა მაღაზიებისთვის, კურიერებისთვის და კომპანიის დისპეჩერისთვის. სტუმარი ამანათს ნომრით ნახულობს; მიმღების პირადი ლინკი ლაივ რუკას მხოლოდ ჩაბარების გზაზე აჩვენებს.</p>
+    <p>Galaxy Express არის საკურიერო პლატფორმა მაღაზიებისთვის, კურიერებისთვის და კომპანიის დისპეჩერისთვის. სტუმარი ამანათს ნომრით ნახულობს. პირადი რუკის ლინკი: მაღაზიის ამანათზე — ჩაბარების გზაზე; პიროვნებას შორის გაგზავნაზე — კურიერის მიბმისთანავე.</p>
   </section>
 {% endblock %}
 {% block extra_js %}

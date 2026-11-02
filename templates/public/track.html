@@ -40,7 +40,7 @@
         <span class="badge" id="status-badge">{{ shipment.status|ka:status_ka }}</span></p>
       <p style="margin:0">{{ shipment.delivery_address.city }}, {{ shipment.delivery_address.line1 }}</p>
       <p class="muted" id="live-hint" style="margin:8px 0 0">
-        {% if live %}კურიერი გზაშია თქვენკენ. რუკა ყოველ რამდენიმე წამში ახლდება.{% else %}ლაივ რუკა გამოჩნდება, როცა კურიერი მიიტანს ამანათს.{% endif %}
+        {% if live %}კურიერის მდებარეობა რუკაზე ჩანს და ყოველ რამდენიმე წამში ახლდება.{% else %}ლაივ რუკა გამოჩნდება, როცა კურიერი გზაში იქნება.{% endif %}
       </p>
     </div>
 
@@ -79,6 +79,7 @@
 
     let courierMarker = null;
     let destMarker = null;
+    let pickupMarker = null;
     let fitted = false;
     let timer = null;
 
@@ -94,16 +95,25 @@
       const hint = document.getElementById("live-hint");
       badge.textContent = data.status_display || data.status;
       if (data.live) {
-        hint.textContent = "კურიერი გზაშია თქვენკენ. რუკა ყოველ რამდენიმე წამში ახლდება.";
+        hint.textContent = "კურიერის მდებარეობა რუკაზე ჩანს და ყოველ რამდენიმე წამში ახლდება.";
       } else {
-        hint.textContent = "ლაივ რუკა გამოჩნდება, როცა კურიერი მიიტანს ამანათს.";
+        hint.textContent = "ლაივ რუკა გამოჩნდება, როცა კურიერი გზაში იქნება.";
       }
     }
 
     function draw(data) {
       setHint(data);
       const dest = data.delivery || {};
+      const pickup = data.pickup || {};
       const bounds = [];
+      if (pickup.latitude != null && pickup.longitude != null) {
+        const here = [pickup.latitude, pickup.longitude];
+        bounds.push(here);
+        if (pickupMarker) pickupMarker.setLatLng(here);
+        else pickupMarker = L.circleMarker(here, {
+          radius: 8, color: "#8a6d1b", fillColor: "#e8b923", fillOpacity: 1
+        }).addTo(map).bindPopup("აღების მისამართი");
+      }
       if (dest.latitude != null && dest.longitude != null) {
         const here = [dest.latitude, dest.longitude];
         bounds.push(here);

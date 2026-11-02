@@ -56,6 +56,7 @@
     <span class="spacer"></span>
     {% if user.is_authenticated %}
       <a href="{% url 'dashboard:shipment-list' %}">ამანათები</a>
+      <a href="{% url 'dashboard:api-access' %}">API</a>
       <form method="post" action="{% url 'dashboard:logout' %}">
         {% csrf_token %}
         <button class="ghost" type="submit">გასვლა</button>

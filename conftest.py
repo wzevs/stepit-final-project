@@ -8,6 +8,19 @@ from apps.couriers.models import CourierProfile
 from apps.shipments.models import Shipment
 
 
+@pytest.fixture(autouse=True)
+def _email_locmem(settings):
+    """Never hit a real SMTP server from pytest, even if .env has Gmail keys."""
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+
+
+@pytest.fixture(autouse=True)
+def _sms_console(settings):
+    """Never hit uBill from pytest, even if .env has a live API key."""
+    settings.UBILL_API_KEY = ""
+    settings.UBILL_BRAND_ID = 0
+
+
 @pytest.fixture
 def company(db):
     return CourierCompany.objects.create(name="Galaxy Express", slug="galaxy", tracking_prefix="GLX")

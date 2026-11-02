@@ -53,6 +53,25 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+Queued SMS/email and shop webhooks sit in the database until you drain them:
+
+```powershell
+python manage.py process_outbox
+```
+
+Guest send emails go out immediately over SMTP when `.env` has `EMAIL_HOST`, `EMAIL_HOST_USER`, and `EMAIL_HOST_PASSWORD` (Gmail app password on port 587). Without those keys, Django prints the message to the runserver console instead of a mailbox. Check the wiring with:
+
+```powershell
+python manage.py send_test_email you@gmail.com
+```
+
+SMS goes out through uBill when `.env` has `UBILL_API_KEY` and `UBILL_BRAND_ID` (the numeric id of an approved sender name, not the word `test`). Without those keys, Django prints SMS to the console. Check the wiring with:
+
+```powershell
+python manage.py send_test_sms 555123456
+```
+
+
 - Homepage: http://127.0.0.1:8000/
 - Admin: http://127.0.0.1:8000/admin/
 - API docs: http://127.0.0.1:8000/api/docs/
