@@ -3,6 +3,33 @@
 Logistics / courier service platform. Django + DRF backend, Android courier app,
 and a browser site for shops, couriers, the company owner, and guests.
 
+Contact channels are **phone (uBill SMS)** and **email (Gmail)**. Telegram was
+replaced by Gmail and is not in the code.
+
+## Scope
+
+**Done**
+
+- Public site: track by number, person-to-person send (`/send/`), role login
+- Guest C2C: auto-assign a courier, live map links for sender and recipient
+- Shop dashboard (manual parcels, API keys) and shop HTTP API (`X-API-Key`)
+- Company panel: shops, couriers, assign / cancel / return, live dispatcher map
+- Courier map in the browser (`/courier/map/`) over JWT
+- Notifications: Gmail SMTP + uBill SMS to sender and recipient
+- Outbox worker: `process_outbox`
+- Street geocoding via Nominatim on shop API orders that omit a pin; a miss leaves coords empty until a manager or courier drops one
+- Live maps over WebSocket, with HTTP polling as fallback
+- Shop COD (cash with the courier); guest `/send/` stays prepaid
+- Guest send, shop form, and shop default pickup require a map pin; shop API may omit coords and fall back to Nominatim
+
+**Still in scope (not finished)**
+
+- Native Android courier app (JWT API and FCM device endpoint already exist)
+
+**Out**
+
+- Telegram
+
 ## Main site
 
 Start the server, then open http://127.0.0.1:8000/.
@@ -23,7 +50,7 @@ A recipient SMS/email link opens http://127.0.0.1:8000/t/<token>/. That page is 
 - Python 3.13, Django 5.2, Django REST Framework
 - SQLite for local development, PostgreSQL in production
 - JWT (SimpleJWT) for staff / courier auth, API keys for client integrations
-- Leaflet maps (Esri / CARTO tiles). City-center pins fill in when a street geocoder is not configured.
+- Leaflet maps (Esri / CARTO tiles). Forms require a pin; only the shop API geocodes by street name.
 
 ## Project layout
 
@@ -38,7 +65,7 @@ apps/
   shipments/       Shipment, ShipmentEvent
   tracking/        CourierLocation, TrackingToken
   integrations/    ApiKey, Webhook, WebhookDelivery
-  notifications/   Notification outbox (SMS / Telegram / Email)
+  notifications/   Notification outbox (SMS / Email)
 ```
 
 ## Local setup
@@ -87,6 +114,7 @@ pytest
 
 Shops with their own software use POST /api/v1/client/shipments/ and the X-API-Key header.
 Sending the same external_id again returns the existing shipment (HTTP 200) instead of a duplicate.
+On `pickup_address` / `delivery_address` you can send `latitude` and `longitude`; those pins skip geocoding. This is the only create path that may omit a pin: Nominatim then looks up the street, and a miss leaves coordinates empty.
 Interactive docs: http://127.0.0.1:8000/api/docs/
 
 Shops without an integration sign in at http://127.0.0.1:8000/dashboard/login/ and add parcels by hand.
@@ -96,10 +124,10 @@ From a shipment page the shop can cancel (before pickup), print a label, and cop
 ## Manager panel
 
 Courier-company staff can also sign in at http://127.0.0.1:8000/manage/login/.
-They need a CompanyMembership. Owners and dispatchers register shops (optional default pickup point) and couriers, assign parcels, cancel, or return to sender.
+They need a CompanyMembership. Owners and dispatchers register shops (optional default pickup point — with a required map pin) and couriers, assign parcels, cancel, or return to sender. On a shipment they can drop a map pin when a shop API address was not geocoded.
 Viewers can look, but cannot change anything. "მიმღების ლინკი" mints a /t/<token>/ URL without sending SMS.
 
-The live map is http://127.0.0.1:8000/manage/map/. It polls /manage/live/ every few seconds and moves the courier pin when a new GPS point arrives. This is polling, not WebSockets; that is enough to watch a courier during a delivery. Open it in a separate browser from the courier tabs so the session cookie is not overwritten.
+The live map is http://127.0.0.1:8000/manage/map/. It opens a WebSocket at /ws/manage/live/ and moves the pin when a GPS point arrives. If the socket drops, it falls back to polling /manage/live/. Open it in a separate browser from the courier tabs so the session cookie is not overwritten.
 
 Recipient live tracking is the public page /t/<token>/. It polls /t/<token>/live/ and shows the courier pin only in out_for_delivery. Delivery address is always on the map when it is geocoded. Courier name, email, and the recipient phone stay off that page.
 
@@ -109,7 +137,7 @@ Open http://127.0.0.1:8000/courier/map/ and sign in on the overlay. Each browser
 
 Keep the dispatcher at http://127.0.0.1:8000/manage/map/ in another browser (or Incognito). The live map polls /manage/live/ every few seconds.
 
-On a Windows browser, click the map to send a test location. On a phone, "ჩემი ადგილი" asks for GPS. Status buttons (picked up, out for delivery, delivered, failed) call POST /api/v1/courier/shipments/{id}/transition/. The old list is still at /courier/shipments/.
+On a Windows browser, click the map to send a test location. On a phone, "ჩემი ადგილი" asks for GPS. Status buttons (picked up, out for delivery, delivered, failed) call POST /api/v1/courier/shipments/{id}/transition/. "დააზუსტე აღება/მიწოდება" then a map click calls POST /api/v1/courier/shipments/{id}/pin/. The old list is still at /courier/shipments/.
 
 To try it from an Android browser on the same Wi-Fi:
 
@@ -121,7 +149,7 @@ Then open http://<this-pc-ip>:8000/. Chrome on the phone often blocks GPS on pla
 
 ## Courier API
 
-The Android app uses JWT, not the browser session.
+The Android app uses JWT, not the browser session. The same API already drives the browser courier map.
 
 1. POST /api/v1/auth/token/ with `{"email": "...", "password": "..."}`.
 2. Send `Authorization: Bearer <access>` on every later call.

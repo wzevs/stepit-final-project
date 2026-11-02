@@ -21,6 +21,10 @@
   .flash li { border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
   .flash .success { background: #e7f5ee; border: 1px solid #b7e0cb; }
   .flash .warning, .flash .error { background: #fdecea; border: 1px solid #f5c2c0; color: #8a1f2b; }
+  .picker { margin: 0 0 16px; }
+  .picker .pick-map { height: 220px; border-radius: 10px; border: 1px solid var(--line); }
+  .picker .hint { color: var(--muted); font-size: 13px; margin: 6px 0 8px; }
+  .picker button { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
 </style>
 {% endblock %}
 {% block content %}
@@ -63,6 +67,12 @@
         <div class="field">{{ form.pickup_city.label_tag }}{{ form.pickup_city }}{{ form.pickup_city.errors }}</div>
         <div class="field">{{ form.pickup_line1.label_tag }}{{ form.pickup_line1 }}{{ form.pickup_line1.errors }}</div>
       </div>
+      {{ form.pickup_lat }}{{ form.pickup_lng }}
+      <div class="picker">
+        <p class="hint">რუკაზე პინი სავალდებულოა. გადათრევაც შეიძლება.</p>
+        <button type="button" data-locate>ჩემი ადგილი</button>
+        <div id="pickup-map" class="pick-map"></div>
+      </div>
       <div class="row">
         <div class="field">{{ form.recipient_name.label_tag }}{{ form.recipient_name }}{{ form.recipient_name.errors }}</div>
         <div class="field">{{ form.recipient_phone.label_tag }}{{ form.recipient_phone }}{{ form.recipient_phone.errors }}</div>
@@ -72,10 +82,22 @@
         <div class="field">{{ form.delivery_city.label_tag }}{{ form.delivery_city }}{{ form.delivery_city.errors }}</div>
         <div class="field">{{ form.delivery_line1.label_tag }}{{ form.delivery_line1 }}{{ form.delivery_line1.errors }}</div>
       </div>
+      {{ form.delivery_lat }}{{ form.delivery_lng }}
+      <div class="picker">
+        <p class="hint">მიწოდების პინი სავალდებულოა.</p>
+        <div id="delivery-map" class="pick-map"></div>
+      </div>
       <div class="field">{{ form.delivery_line2.label_tag }}{{ form.delivery_line2 }}{{ form.delivery_line2.errors }}</div>
       <div class="field">{{ form.description.label_tag }}{{ form.description }}{{ form.description.errors }}</div>
       <p>{{ form.is_fragile }} {{ form.is_fragile.label }}</p>
       <button class="btn-yellow" type="submit">გაგზავნა</button>
     </form>
   </div>
+{% endblock %}
+{% block extra_js %}
+  {% include "includes/leaflet_base.html" %}
+  <script>
+    bindLocationPicker("pickup-map", document.getElementById("id_pickup_lat"), document.getElementById("id_pickup_lng"));
+    bindLocationPicker("delivery-map", document.getElementById("id_delivery_lat"), document.getElementById("id_delivery_lng"));
+  </script>
 {% endblock %}

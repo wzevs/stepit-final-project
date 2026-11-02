@@ -19,6 +19,7 @@ env = environ.Env(
     EMAIL_PORT=(int, 587),
     EMAIL_USE_TLS=(bool, True),
     EMAIL_USE_SSL=(bool, False),
+    GEOCODER_ENABLED=(bool, True),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
@@ -30,6 +31,7 @@ ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 # Applications
 # ---------------------------------------------------------------------------
 DJANGO_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -39,6 +41,7 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "channels",
     "rest_framework",
     "rest_framework_simplejwt",
     "django_filters",
@@ -198,6 +201,13 @@ TRACKING_TOKEN_TTL_DAYS = env("TRACKING_TOKEN_TTL_DAYS")
 # After a shipment reaches a final status its tracking links stay valid this long.
 TRACKING_TOKEN_GRACE_HOURS = env("TRACKING_TOKEN_GRACE_HOURS")
 GOOGLE_MAPS_API_KEY = env("GOOGLE_MAPS_API_KEY", default="")
+GEOCODER_ENABLED = env("GEOCODER_ENABLED")
+GEOCODER_URL = env("GEOCODER_URL", default="https://nominatim.openstreetmap.org/search").rstrip("/")
+GEOCODER_USER_AGENT = env(
+    "GEOCODER_USER_AGENT",
+    default="GalaxyExpress/1.0 (StepIT final project)",
+)
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 UBILL_API_URL = env("UBILL_API_URL", default="https://api.ubill.dev").rstrip("/")
 UBILL_API_KEY = env("UBILL_API_KEY", default="")
 UBILL_BRAND_ID = int(env("UBILL_BRAND_ID", default="") or 0)

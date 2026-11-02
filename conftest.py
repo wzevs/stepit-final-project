@@ -21,6 +21,12 @@ def _sms_console(settings):
     settings.UBILL_BRAND_ID = 0
 
 
+@pytest.fixture(autouse=True)
+def _geocoder_off(settings):
+    """Tests use city-center pins unless they opt into a mocked street lookup."""
+    settings.GEOCODER_ENABLED = False
+
+
 @pytest.fixture
 def company(db):
     return CourierCompany.objects.create(name="Galaxy Express", slug="galaxy", tracking_prefix="GLX")

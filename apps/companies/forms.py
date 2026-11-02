@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 from apps.accounts.models import User
 from apps.clients.models import Client, PickupPoint
-from apps.core.geo import city_center
+from apps.core.geo import require_coords
 from apps.core.models import Address
 from apps.couriers.models import CourierProfile
 
@@ -18,6 +18,12 @@ class ClientCreateForm(forms.Form):
     api_enabled = forms.BooleanField(required=False, label="API წვდომა")
     pickup_city = forms.CharField(max_length=100, required=False, label="აღება: ქალაქი")
     pickup_line1 = forms.CharField(max_length=255, required=False, label="აღება: მისამართი")
+    pickup_lat = forms.DecimalField(
+        max_digits=9, decimal_places=6, required=False, widget=forms.HiddenInput
+    )
+    pickup_lng = forms.DecimalField(
+        max_digits=9, decimal_places=6, required=False, widget=forms.HiddenInput
+    )
 
     def __init__(self, *args, company, **kwargs):
         self.company = company
@@ -35,6 +41,11 @@ class ClientCreateForm(forms.Form):
         line1 = (cleaned.get("pickup_line1") or "").strip()
         if (city and not line1) or (line1 and not city):
             raise forms.ValidationError("აღების ქალაქი და მისამართი ერთად შეავსეთ.")
+        if city and line1:
+            try:
+                require_coords(cleaned.get("pickup_lat"), cleaned.get("pickup_lng"))
+            except ValueError as exc:
+                raise forms.ValidationError(str(exc)) from exc
         return cleaned
 
     def save(self):
@@ -51,8 +62,8 @@ class ClientCreateForm(forms.Form):
         city = (data.get("pickup_city") or "").strip()
         line1 = (data.get("pickup_line1") or "").strip()
         if city and line1:
-            lat, lng = city_center(city)
-            address = Address.objects.create(city=city, line1=line1, latitude=lat, longitude=lng)
+            coords = require_coords(data.get("pickup_lat"), data.get("pickup_lng"))
+            address = Address.objects.create(city=city, line1=line1, **coords)
             PickupPoint.objects.create(client=client, name="მთავარი", address=address, is_default=True)
         return client
 

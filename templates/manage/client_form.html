@@ -1,5 +1,8 @@
 {% extends "manage/base.html" %}
 {% block title %}ახალი მაღაზია{% endblock %}
+{% block extra_head %}
+  {% include "includes/leaflet_base.html" %}
+{% endblock %}
 {% block content %}
   <h1>ახალი მაღაზია</h1>
   <form method="post" class="card">
@@ -18,6 +21,14 @@
       <div class="field">{{ form.pickup_city.label_tag }}{{ form.pickup_city }}{{ form.pickup_city.errors }}</div>
       <div class="field">{{ form.pickup_line1.label_tag }}{{ form.pickup_line1 }}{{ form.pickup_line1.errors }}</div>
     </div>
+    {{ form.pickup_lat }}{{ form.pickup_lng }}
+    <div class="picker">
+      <p class="muted">თუ აღების მისამართს ავსებთ, რუკაზე პინი სავალდებულოა.</p>
+      <div id="pickup-map" class="pick-map"></div>
+    </div>
+    <script>
+      bindLocationPicker("pickup-map", document.getElementById("id_pickup_lat"), document.getElementById("id_pickup_lng"));
+    </script>
     <div class="field" style="margin-bottom: 16px;">
       <label>{{ form.api_enabled }} {{ form.api_enabled.label }}</label>
     </div>

@@ -41,7 +41,6 @@ class User(UUIDModel, AbstractUser):
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, blank=True, db_index=True)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CLIENT_STAFF)
-    telegram_chat_id = models.CharField(max_length=50, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []

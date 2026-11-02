@@ -128,6 +128,9 @@ def record_locations(courier: CourierProfile, points: list[dict]) -> int:
     courier.last_latitude = last.latitude
     courier.last_longitude = last.longitude
     courier.last_location_at = last.recorded_at
+    from .realtime import broadcast_courier_location
+
+    broadcast_courier_location(courier)
     return len(rows)
 
 

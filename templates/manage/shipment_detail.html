@@ -1,6 +1,9 @@
 {% extends "manage/base.html" %}
 {% load dashboard_tags %}
 {% block title %}{{ shipment.tracking_number }}{% endblock %}
+{% block extra_head %}
+  {% include "includes/leaflet_base.html" %}
+{% endblock %}
 {% block content %}
   <p><a href="{% url 'manage:shipment-list' %}">ამანათები</a>
     · <a href="{% url 'manage:shipment-label' shipment.pk %}">ეტიკეტი</a></p>
@@ -12,8 +15,10 @@
     </p>
     <p><strong>მაღაზია:</strong> {{ shipment.client.name }}</p>
     <p><strong>მიმღები:</strong> {{ shipment.recipient_name }}, {{ shipment.recipient_phone }}</p>
-    <p><strong>საიდან:</strong> {{ shipment.pickup_address }}</p>
-    <p><strong>სად:</strong> {{ shipment.delivery_address }}</p>
+    <p><strong>საიდან:</strong> {{ shipment.pickup_address }}
+      {% if not shipment.pickup_address.is_geocoded %}<span class="muted">· პინი არ არის</span>{% endif %}</p>
+    <p><strong>სად:</strong> {{ shipment.delivery_address }}
+      {% if not shipment.delivery_address.is_geocoded %}<span class="muted">· პინი არ არის</span>{% endif %}</p>
     <p><strong>კურიერი:</strong>
       {% if shipment.courier %}{{ shipment.courier.user.get_full_name|default:shipment.courier.user.email }}{% else %}არ არის{% endif %}
     </p>
@@ -59,6 +64,37 @@
         </form>
       {% endif %}
     </div>
+  {% endif %}
+
+  {% if can_manage %}
+    <h2 style="font-size: 16px;">ლოკაციის დაზუსტება</h2>
+    <p class="muted">თუ ქუჩის სახელით პოვნა ვერ მოხერხდა, პინი აქ დასვით.</p>
+    <div class="row">
+      <form method="post" class="card field">
+        {% csrf_token %}
+        <input type="hidden" name="intent" value="pin">
+        <input type="hidden" name="which" value="pickup">
+        <input type="hidden" name="latitude" id="id_pickup_lat" value="{{ shipment.pickup_address.latitude|default_if_none:'' }}">
+        <input type="hidden" name="longitude" id="id_pickup_lng" value="{{ shipment.pickup_address.longitude|default_if_none:'' }}">
+        <p><strong>აღება</strong></p>
+        <div id="pickup-map" class="pick-map"></div>
+        <button type="submit">აღების პინის შენახვა</button>
+      </form>
+      <form method="post" class="card field">
+        {% csrf_token %}
+        <input type="hidden" name="intent" value="pin">
+        <input type="hidden" name="which" value="delivery">
+        <input type="hidden" name="latitude" id="id_delivery_lat" value="{{ shipment.delivery_address.latitude|default_if_none:'' }}">
+        <input type="hidden" name="longitude" id="id_delivery_lng" value="{{ shipment.delivery_address.longitude|default_if_none:'' }}">
+        <p><strong>მიწოდება</strong></p>
+        <div id="delivery-map" class="pick-map"></div>
+        <button type="submit">მიწოდების პინის შენახვა</button>
+      </form>
+    </div>
+    <script>
+      bindLocationPicker("pickup-map", document.getElementById("id_pickup_lat"), document.getElementById("id_pickup_lng"));
+      bindLocationPicker("delivery-map", document.getElementById("id_delivery_lat"), document.getElementById("id_delivery_lng"));
+    </script>
   {% endif %}
 
   {% if can_assign or can_unassign %}

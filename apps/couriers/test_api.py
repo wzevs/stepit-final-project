@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.clients.models import ClientMembership
+from apps.core.models import Address
 from apps.couriers.models import Device
 from apps.shipments.models import Shipment
 from apps.shipments.services import assign_courier, transition
@@ -122,6 +123,31 @@ def test_transition_picked_up_and_delivered(api, courier, shipment):
     shipment.refresh_from_db()
     assert shipment.received_by == "Nino"
     assert shipment.delivered_at is not None
+
+
+def test_courier_sets_delivery_pin(api, courier, company, client_shop):
+    pickup = Address.objects.create(city="Tbilisi", line1="Chavchavadze 5")
+    delivery = Address.objects.create(city="Tbilisi", line1="Unknown alley 12")
+    shipment = Shipment.objects.create(
+        company=company,
+        client=client_shop,
+        pickup_address=pickup,
+        delivery_address=delivery,
+        recipient_name="Nino",
+        recipient_phone="+995555000000",
+        status=S.ASSIGNED,
+        courier=courier,
+    )
+    response = api.post(
+        f"/api/v1/courier/shipments/{shipment.pk}/pin/",
+        {"which": "delivery", "latitude": "41.701111", "longitude": "44.801111"},
+        format="json",
+    )
+    assert response.status_code == 200
+    delivery.refresh_from_db()
+    pickup.refresh_from_db()
+    assert str(delivery.latitude) == "41.701111"
+    assert pickup.latitude is None
 
 
 def test_failed_without_reason_is_rejected(api, courier, shipment):

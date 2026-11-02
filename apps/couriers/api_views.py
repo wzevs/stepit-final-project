@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from apps.core.geo import set_pin
 from apps.couriers.models import Device
 from apps.shipments.models import Shipment
 from apps.shipments.services import InvalidTransition, ShipmentError, courier_allowed_next, transition
@@ -16,6 +17,7 @@ from apps.tracking.services import record_locations
 
 from .permissions import IsCourier
 from .serializers import (
+    AddressPinSerializer,
     CourierMeSerializer,
     CourierShipmentSerializer,
     CourierStatusSerializer,
@@ -142,6 +144,23 @@ class CourierShipmentViewSet(
         if fields:
             fields.append("updated_at")
             shipment.save(update_fields=fields)
+        return Response(CourierShipmentSerializer(shipment).data)
+
+    @extend_schema(
+        tags=["courier"],
+        summary="Set pickup or delivery pin",
+        request=AddressPinSerializer,
+        responses=CourierShipmentSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def pin(self, request, pk=None):
+        shipment = self.get_object()
+        serializer = AddressPinSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        which = serializer.validated_data["which"]
+        address = shipment.pickup_address if which == "pickup" else shipment.delivery_address
+        set_pin(address, serializer.validated_data["latitude"], serializer.validated_data["longitude"])
+        shipment.refresh_from_db()
         return Response(CourierShipmentSerializer(shipment).data)
 
 

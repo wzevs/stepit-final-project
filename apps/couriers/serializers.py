@@ -116,6 +116,12 @@ class TransitionSerializer(serializers.Serializer):
         return attrs
 
 
+class AddressPinSerializer(serializers.Serializer):
+    which = serializers.ChoiceField(choices=("pickup", "delivery"))
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6)
+
+
 class LocationPointSerializer(serializers.Serializer):
     lat = serializers.DecimalField(max_digits=9, decimal_places=6)
     lng = serializers.DecimalField(max_digits=9, decimal_places=6)

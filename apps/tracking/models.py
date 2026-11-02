@@ -50,7 +50,7 @@ class TrackingToken(TimeStampedModel):
     revoked_at = models.DateTimeField(null=True, blank=True)
     access_count = models.PositiveIntegerField(default=0)
     last_accessed_at = models.DateTimeField(null=True, blank=True)
-    sent_via = models.CharField(max_length=20, blank=True, help_text="sms / telegram / email")
+    sent_via = models.CharField(max_length=20, blank=True, help_text="sms / email")
 
     class Meta:
         ordering = ["-created_at"]

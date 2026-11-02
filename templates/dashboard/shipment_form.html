@@ -1,5 +1,8 @@
 {% extends "dashboard/base.html" %}
 {% block title %}ახალი ამანათი{% endblock %}
+{% block extra_head %}
+  {% include "includes/leaflet_base.html" %}
+{% endblock %}
 {% block content %}
   <h1>ახალი ამანათი</h1>
   <form method="post" class="card">
@@ -21,19 +24,38 @@
       <div class="field">{{ form.pickup_city.label_tag }}{{ form.pickup_city }}{{ form.pickup_city.errors }}</div>
       <div class="field">{{ form.pickup_line1.label_tag }}{{ form.pickup_line1 }}{{ form.pickup_line1.errors }}</div>
     </div>
+    {{ form.pickup_lat }}{{ form.pickup_lng }}
+    <div class="picker">
+      <p class="hint">პინი სავალდებულოა, თუ აღების წერტილს არ ირჩევ. შენახულ წერტილს უკვე უნდა ჰქონდეს პინი.</p>
+      <button type="button" data-locate>ჩემი ადგილი</button>
+      <div id="pickup-map" class="pick-map"></div>
+    </div>
     <h2 style="font-size: 16px;">სად</h2>
     <div class="row">
       <div class="field">{{ form.delivery_city.label_tag }}{{ form.delivery_city }}{{ form.delivery_city.errors }}</div>
       <div class="field">{{ form.delivery_line1.label_tag }}{{ form.delivery_line1 }}{{ form.delivery_line1.errors }}</div>
       <div class="field">{{ form.delivery_line2.label_tag }}{{ form.delivery_line2 }}{{ form.delivery_line2.errors }}</div>
     </div>
+    {{ form.delivery_lat }}{{ form.delivery_lng }}
+    <div class="picker">
+      <p class="hint">მიწოდების პინი სავალდებულოა. API-ით latitude/longitude შეგიძლია გამოგზავნო, ან ქუჩის სახელი — მაშინ Nominatim სცდის.</p>
+      <div id="delivery-map" class="pick-map"></div>
+    </div>
     <div class="field" style="margin-bottom: 12px;">{{ form.delivery_notes.label_tag }}{{ form.delivery_notes }}{{ form.delivery_notes.errors }}</div>
     <h2 style="font-size: 16px;">ამანათი</h2>
     <div class="row">
       <div class="field">{{ form.description.label_tag }}{{ form.description }}{{ form.description.errors }}</div>
       <div class="field">{{ form.weight_kg.label_tag }}{{ form.weight_kg }}{{ form.weight_kg.errors }}</div>
-      <div class="field">{{ form.payment_type.label_tag }}{{ form.payment_type }}{{ form.payment_type.errors }}</div>
-      <div class="field">{{ form.cod_amount.label_tag }}{{ form.cod_amount }}{{ form.cod_amount.errors }}</div>
+    </div>
+    <div class="field" style="margin-bottom: 12px;">
+      {{ form.payment_type.label_tag }}
+      <div class="pay-choice">{{ form.payment_type }}</div>
+      {{ form.payment_type.errors }}
+    </div>
+    <div class="field" id="cod-amount-wrap" style="margin-bottom: 12px;">
+      {{ form.cod_amount.label_tag }}{{ form.cod_amount }}
+      <p class="muted" style="margin:6px 0 0">მხოლოდ მაღაზიის/რეგისტრირებული კლიენტის შეკვეთაზე. სტუმარს ეს არჩევანი არ აქვს.</p>
+      {{ form.cod_amount.errors }}
     </div>
     <div class="field" style="margin-bottom: 12px;">
       <label>{{ form.is_fragile }} {{ form.is_fragile.label }}</label>
@@ -43,4 +65,18 @@
     <button type="submit">შენახვა</button>
     <a href="{% url 'dashboard:shipment-list' %}" style="margin-left: 12px;">გაუქმება</a>
   </form>
+  <script>
+  (function () {
+    const wrap = document.getElementById("cod-amount-wrap");
+    const radios = document.querySelectorAll("input[name=payment_type]");
+    function sync() {
+      const chosen = document.querySelector("input[name=payment_type]:checked");
+      wrap.style.display = chosen && chosen.value === "cod" ? "" : "none";
+    }
+    radios.forEach(function (el) { el.addEventListener("change", sync); });
+    sync();
+    bindLocationPicker("pickup-map", document.getElementById("id_pickup_lat"), document.getElementById("id_pickup_lng"));
+    bindLocationPicker("delivery-map", document.getElementById("id_delivery_lat"), document.getElementById("id_delivery_lng"));
+  })();
+  </script>
 {% endblock %}

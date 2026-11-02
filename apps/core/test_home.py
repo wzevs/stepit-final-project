@@ -124,7 +124,10 @@ def test_shop_user_cannot_enter_as_a_courier(client, client_shop):
 def test_guest_send_page_needs_no_login(client):
     response = client.get(reverse("guest-send"))
     assert response.status_code == 200
-    assert "ანგარიში არ სჭირდება" in response.content.decode()
+    body = response.content.decode()
+    assert "ანგარიში არ სჭირდება" in body
+    assert 'id="pickup-map"' in body
+    assert 'id="delivery-map"' in body
 
 
 _GUEST_SEND = {
@@ -133,11 +136,15 @@ _GUEST_SEND = {
     "sender_email": "giorgi@example.com",
     "pickup_city": "Tbilisi",
     "pickup_line1": "Rustaveli 1",
+    "pickup_lat": "41.701111",
+    "pickup_lng": "44.801111",
     "recipient_name": "Nino",
     "recipient_phone": "555000111",
     "recipient_email": "nino@example.com",
     "delivery_city": "Batumi",
     "delivery_line1": "Gorgasali 5",
+    "delivery_lat": "41.616800",
+    "delivery_lng": "41.636700",
 }
 
 
@@ -149,6 +156,29 @@ def test_guest_send_requires_emails(client, company):
     assert response.status_code == 200
     assert Shipment.objects.count() == 0
     assert "ელფოსტა" in response.content.decode()
+
+
+def test_guest_send_requires_pins(client, company):
+    payload = dict(_GUEST_SEND)
+    payload.pop("pickup_lat")
+    payload.pop("pickup_lng")
+    payload.pop("delivery_lat")
+    payload.pop("delivery_lng")
+    response = client.post(reverse("guest-send"), payload)
+    assert response.status_code == 200
+    assert Shipment.objects.count() == 0
+    assert "პინი" in response.content.decode()
+
+
+def test_guest_send_keeps_map_pin(client, company):
+    response = client.post(
+        reverse("guest-send"),
+        _GUEST_SEND,
+    )
+    assert response.status_code == 302
+    shipment = Shipment.objects.select_related("pickup_address", "delivery_address").get()
+    assert str(shipment.pickup_address.latitude) == "41.701111"
+    assert str(shipment.delivery_address.longitude) == "41.636700"
 
 
 def test_guest_can_send_without_an_account(client, company):

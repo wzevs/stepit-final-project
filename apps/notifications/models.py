@@ -12,7 +12,6 @@ class Notification(TimeStampedModel):
 
     class Channel(models.TextChoices):
         SMS = "sms", "SMS"
-        TELEGRAM = "telegram", "Telegram"
         EMAIL = "email", "Email"
 
     class Status(models.TextChoices):
@@ -22,7 +21,7 @@ class Notification(TimeStampedModel):
 
     shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE, related_name="notifications")
     channel = models.CharField(max_length=10, choices=Channel.choices)
-    recipient = models.CharField(max_length=255, help_text="Phone number / chat id / email")
+    recipient = models.CharField(max_length=255, help_text="Phone number or email")
     template = models.CharField(max_length=50, help_text="tracking_link, out_for_delivery, delivered, ...")
     body = models.TextField()
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED, db_index=True)

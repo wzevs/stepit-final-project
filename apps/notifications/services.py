@@ -46,7 +46,7 @@ def notify_walk_in_parties(
 ) -> list[Notification]:
     """
     Email and SMS to both people: the sender and the recipient have different
-    addresses. SMS is queued the same way as email; a gateway comes later.
+    addresses. SMS goes through uBill when it is configured.
     """
     meta = shipment.metadata or {}
     sender_name = meta.get("sender_name") or ""

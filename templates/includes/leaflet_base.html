@@ -20,4 +20,37 @@ function addBaseTiles(map) {
   });
   esri.addTo(map);
 }
+
+function bindLocationPicker(mapId, latInput, lngInput) {
+  const mapEl = document.getElementById(mapId);
+  if (!mapEl || typeof L === "undefined") return;
+  const startLat = parseFloat(latInput.value);
+  const startLng = parseFloat(lngInput.value);
+  const hasStart = Number.isFinite(startLat) && Number.isFinite(startLng);
+  const map = L.map(mapId).setView(hasStart ? [startLat, startLng] : [41.7151, 44.8271], hasStart ? 16 : 12);
+  addBaseTiles(map);
+  let marker = null;
+  function place(latlng) {
+    if (marker) marker.setLatLng(latlng);
+    else {
+      marker = L.marker(latlng, {draggable: true}).addTo(map);
+      marker.on("dragend", function () { place(marker.getLatLng()); });
+    }
+    latInput.value = latlng.lat.toFixed(6);
+    lngInput.value = latlng.lng.toFixed(6);
+    map.panTo(latlng);
+  }
+  if (hasStart) place({lat: startLat, lng: startLng});
+  map.on("click", function (event) { place(event.latlng); });
+  const locate = mapEl.parentNode.querySelector("[data-locate]");
+  if (locate && navigator.geolocation) {
+    locate.addEventListener("click", function () {
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        place({lat: pos.coords.latitude, lng: pos.coords.longitude});
+        map.setZoom(16);
+      });
+    });
+  }
+  setTimeout(function () { map.invalidateSize(); }, 200);
+}
 </script>

@@ -1,6 +1,7 @@
 from django import forms
 
 from apps.clients.models import PickupPoint
+from apps.core.geo import require_coords
 from apps.shipments.creation import pickup_points_for
 from apps.shipments.models import Shipment
 
@@ -12,8 +13,20 @@ class ShipmentCreateForm(forms.Form):
     )
     pickup_city = forms.CharField(max_length=100, required=False, label="აღება: ქალაქი")
     pickup_line1 = forms.CharField(max_length=255, required=False, label="აღება: მისამართი")
+    pickup_lat = forms.DecimalField(
+        max_digits=9, decimal_places=6, required=False, widget=forms.HiddenInput
+    )
+    pickup_lng = forms.DecimalField(
+        max_digits=9, decimal_places=6, required=False, widget=forms.HiddenInput
+    )
     delivery_city = forms.CharField(max_length=100, label="მიწოდება: ქალაქი")
     delivery_line1 = forms.CharField(max_length=255, label="მიწოდება: მისამართი")
+    delivery_lat = forms.DecimalField(
+        max_digits=9, decimal_places=6, required=False, widget=forms.HiddenInput
+    )
+    delivery_lng = forms.DecimalField(
+        max_digits=9, decimal_places=6, required=False, widget=forms.HiddenInput
+    )
     delivery_line2 = forms.CharField(max_length=255, required=False, label="სადარბაზო, სართული, ბინა")
     delivery_notes = forms.CharField(max_length=255, required=False, label="შენიშვნა კურიერისთვის")
     recipient_name = forms.CharField(max_length=150, label="მიმღები")
@@ -21,7 +34,15 @@ class ShipmentCreateForm(forms.Form):
     recipient_email = forms.EmailField(required=False, label="ელფოსტა")
     description = forms.CharField(max_length=255, required=False, label="აღწერა")
     weight_kg = forms.DecimalField(max_digits=7, decimal_places=3, required=False, label="წონა (კგ)")
-    payment_type = forms.ChoiceField(choices=Shipment.PaymentType.choices, label="გადახდა")
+    payment_type = forms.ChoiceField(
+        choices=(
+            (Shipment.PaymentType.PREPAID, "წინასწარ გადახდილი"),
+            (Shipment.PaymentType.COD, "ნაღდი ადგილზე — მიმღები იხდის კურიერთან"),
+        ),
+        widget=forms.RadioSelect,
+        initial=Shipment.PaymentType.PREPAID,
+        label="გადახდა",
+    )
     cod_amount = forms.DecimalField(
         max_digits=10, decimal_places=2, required=False, label="თანხა მიწოდებისას"
     )
@@ -45,13 +66,28 @@ class ShipmentCreateForm(forms.Form):
             raise forms.ValidationError("აირჩიეთ აღების წერტილი ან მიუთითეთ აღების მისამართი.")
         if cleaned.get("payment_type") == Shipment.PaymentType.COD and not cleaned.get("cod_amount"):
             self.add_error("cod_amount", "თანხა აუცილებელია, როცა გადახდა მიწოდებისას ხდება.")
+        try:
+            require_coords(cleaned.get("delivery_lat"), cleaned.get("delivery_lng"))
+            if has_pickup:
+                require_coords(cleaned.get("pickup_lat"), cleaned.get("pickup_lng"))
+            elif has_point and not cleaned["pickup_point"].address.is_geocoded:
+                self.add_error(
+                    "pickup_point",
+                    "ამ წერტილს პინი არ აქვს. რუკაზე დასვით ან მისამართი ხელით მიუთითეთ.",
+                )
+        except ValueError as exc:
+            raise forms.ValidationError(str(exc)) from exc
         return cleaned
 
     def to_payload(self) -> dict:
         data = self.cleaned_data
         pickup = None
         if data.get("pickup_city") and data.get("pickup_line1"):
-            pickup = {"city": data["pickup_city"], "line1": data["pickup_line1"]}
+            pickup = {
+                "city": data["pickup_city"],
+                "line1": data["pickup_line1"],
+                **require_coords(data.get("pickup_lat"), data.get("pickup_lng")),
+            }
         return {
             "external_id": data.get("external_id") or "",
             "pickup_point": data.get("pickup_point"),
@@ -61,6 +97,7 @@ class ShipmentCreateForm(forms.Form):
                 "line1": data["delivery_line1"],
                 "line2": data.get("delivery_line2") or "",
                 "notes": data.get("delivery_notes") or "",
+                **require_coords(data.get("delivery_lat"), data.get("delivery_lng")),
             },
             "recipient_name": data["recipient_name"],
             "recipient_phone": data["recipient_phone"],

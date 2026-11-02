@@ -95,7 +95,7 @@
       const hint = document.getElementById("live-hint");
       badge.textContent = data.status_display || data.status;
       if (data.live) {
-        hint.textContent = "კურიერის მდებარეობა რუკაზე ჩანს და ყოველ რამდენიმე წამში ახლდება.";
+        hint.textContent = "კურიერის მდებარეობა რუკაზე ჩანს და ახლდება, როგორც კი იძვრება.";
       } else {
         hint.textContent = "ლაივ რუკა გამოჩნდება, როცა კურიერი გზაში იქნება.";
       }
@@ -169,7 +169,14 @@
       }
     }
 
-    tick();
+    function listenSocket() {
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      const socket = new WebSocket(proto + "//" + location.host + "/ws/t/{{ token }}/live/");
+      socket.onmessage = function (event) { draw(JSON.parse(event.data)); };
+      socket.onclose = function () { tick(); };
+    }
+
+    listenSocket();
   })();
   </script>
 </body>

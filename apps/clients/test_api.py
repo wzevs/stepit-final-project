@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 from rest_framework.test import APIClient
 
@@ -58,6 +60,31 @@ def test_api_disabled_is_forbidden(client_shop):
     client.credentials(HTTP_X_API_KEY=raw)
     response = client.post("/api/v1/client/shipments/", _body(), format="json")
     assert response.status_code == 403
+
+
+def test_create_keeps_manual_coordinates(api):
+    body = _body(
+        pickup_address={
+            "city": "Tbilisi",
+            "line1": "Door A",
+            "latitude": "41.701111",
+            "longitude": "44.801111",
+        },
+        delivery_address={
+            "city": "Tbilisi",
+            "line1": "Door B",
+            "latitude": "41.722222",
+            "longitude": "44.812222",
+        },
+    )
+    response = api.post("/api/v1/client/shipments/", body, format="json")
+    assert response.status_code == 201
+    shipment = Shipment.objects.get(pk=response.data["id"])
+    assert shipment.pickup_address.latitude == Decimal("41.701111")
+    assert shipment.pickup_address.longitude == Decimal("44.801111")
+    assert shipment.delivery_address.latitude == Decimal("41.722222")
+    assert shipment.delivery_address.longitude == Decimal("44.812222")
+    assert Decimal(str(response.data["delivery_address"]["latitude"])) == Decimal("41.722222")
 
 
 def test_create_lists_and_retrieves(api):
