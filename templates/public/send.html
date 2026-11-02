@@ -1,0 +1,81 @@
+{% extends "public/base.html" %}
+{% block title %}ამანათის გაგზავნა{% endblock %}
+{% block extra_css %}
+<style>
+  .send { width: min(720px, calc(100% - 40px)); margin: 40px auto 24px; }
+  .send h1 { margin: 0 0 8px; font-size: 32px; }
+  .lead { color: var(--muted); margin: 0 0 24px; }
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 24px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .field { flex: 1 1 240px; margin-bottom: 12px; }
+  label { display: block; font-size: 13px; margin-bottom: 4px; }
+  input[type="text"], input[type="tel"], input[type="email"] {
+    font: inherit; padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 8px; width: 100%;
+  }
+  .errorlist { color: #9b2335; font-size: 13px; margin: 4px 0 8px; padding: 0; list-style: none; }
+  .ok {
+    background: #e7f5ee; border: 1px solid #b7e0cb; border-radius: 12px; padding: 16px 18px; margin-bottom: 20px;
+  }
+  .ok strong { font-size: 20px; letter-spacing: .04em; }
+  .flash { list-style: none; padding: 0; margin: 0 0 16px; }
+  .flash li { border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .flash .success { background: #e7f5ee; border: 1px solid #b7e0cb; }
+  .flash .warning, .flash .error { background: #fdecea; border: 1px solid #f5c2c0; color: #8a1f2b; }
+</style>
+{% endblock %}
+{% block content %}
+  <div class="send">
+    <h1>გაგზავნე ამანათი</h1>
+    <p class="lead">ფიზიკურ პირს ანგარიში არ სჭირდება. შეავსე ფორმა — რუკის ლინკი გამგზავნსაც და მიმღებსაც ელფოსტაზე მივა.</p>
+    {% if messages %}
+      <ul class="flash">
+        {% for message in messages %}
+          <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if tracking_number %}
+      <div class="ok">
+        <p style="margin:0 0 6px">ამანათი მიღებულია.</p>
+        <p style="margin:0">ტრეკინგი: <strong>{{ tracking_number }}</strong></p>
+        {% if assigned %}
+          <p style="margin:10px 0 0">კურიერი მიბმულია. რუკაზე ჩანს აღება და მიწოდება.</p>
+        {% else %}
+          <p style="margin:10px 0 0">კურიერი ახლა ონლაინ არ არის. დისპეტჩერი მიაბამს, რუკის ლინკები უკვე მოქმედებს.</p>
+        {% endif %}
+        {% if sender_url %}
+          <p style="margin:10px 0 0"><a href="{{ sender_url }}">თქვენი რუკა</a></p>
+        {% endif %}
+        {% if recipient_url %}
+          <p style="margin:6px 0 0"><a href="{{ recipient_url }}">მიმღების რუკა</a> — იგივე ლინკი მიმღების ელფოსტაზეც არის.</p>
+        {% endif %}
+      </div>
+    {% endif %}
+    <form method="post" class="panel">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<ul class="errorlist">{{ form.non_field_errors }}</ul>{% endif %}
+      <div class="row">
+        <div class="field">{{ form.sender_name.label_tag }}{{ form.sender_name }}{{ form.sender_name.errors }}</div>
+        <div class="field">{{ form.sender_phone.label_tag }}{{ form.sender_phone }}{{ form.sender_phone.errors }}</div>
+        <div class="field">{{ form.sender_email.label_tag }}{{ form.sender_email }}{{ form.sender_email.errors }}</div>
+      </div>
+      <div class="row">
+        <div class="field">{{ form.pickup_city.label_tag }}{{ form.pickup_city }}{{ form.pickup_city.errors }}</div>
+        <div class="field">{{ form.pickup_line1.label_tag }}{{ form.pickup_line1 }}{{ form.pickup_line1.errors }}</div>
+      </div>
+      <div class="row">
+        <div class="field">{{ form.recipient_name.label_tag }}{{ form.recipient_name }}{{ form.recipient_name.errors }}</div>
+        <div class="field">{{ form.recipient_phone.label_tag }}{{ form.recipient_phone }}{{ form.recipient_phone.errors }}</div>
+        <div class="field">{{ form.recipient_email.label_tag }}{{ form.recipient_email }}{{ form.recipient_email.errors }}</div>
+      </div>
+      <div class="row">
+        <div class="field">{{ form.delivery_city.label_tag }}{{ form.delivery_city }}{{ form.delivery_city.errors }}</div>
+        <div class="field">{{ form.delivery_line1.label_tag }}{{ form.delivery_line1 }}{{ form.delivery_line1.errors }}</div>
+      </div>
+      <div class="field">{{ form.delivery_line2.label_tag }}{{ form.delivery_line2 }}{{ form.delivery_line2.errors }}</div>
+      <div class="field">{{ form.description.label_tag }}{{ form.description }}{{ form.description.errors }}</div>
+      <p>{{ form.is_fragile }} {{ form.is_fragile.label }}</p>
+      <button class="btn-yellow" type="submit">გაგზავნა</button>
+    </form>
+  </div>
+{% endblock %}

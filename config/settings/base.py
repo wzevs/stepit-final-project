@@ -16,6 +16,9 @@ env = environ.Env(
     CORS_ALLOWED_ORIGINS=(list, []),
     TRACKING_TOKEN_TTL_DAYS=(int, 7),
     TRACKING_TOKEN_GRACE_HOURS=(int, 24),
+    EMAIL_PORT=(int, 587),
+    EMAIL_USE_TLS=(bool, True),
+    EMAIL_USE_SSL=(bool, False),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
@@ -173,11 +176,33 @@ CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 # ---------------------------------------------------------------------------
 # Project-specific
 # ---------------------------------------------------------------------------
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env("EMAIL_PORT")
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="").replace(" ", "")
+EMAIL_USE_TLS = env("EMAIL_USE_TLS")
+EMAIL_USE_SSL = env("EMAIL_USE_SSL")
+EMAIL_TIMEOUT = 20
+if EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    DEFAULT_FROM_EMAIL = env(
+        "DEFAULT_FROM_EMAIL",
+        default=f"Galaxy Express <{EMAIL_HOST_USER}>",
+    )
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Galaxy Express <noreply@localhost>")
+
 PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", default="http://localhost:8000").rstrip("/")
 TRACKING_TOKEN_TTL_DAYS = env("TRACKING_TOKEN_TTL_DAYS")
 # After a shipment reaches a final status its tracking links stay valid this long.
 TRACKING_TOKEN_GRACE_HOURS = env("TRACKING_TOKEN_GRACE_HOURS")
 GOOGLE_MAPS_API_KEY = env("GOOGLE_MAPS_API_KEY", default="")
+UBILL_API_URL = env("UBILL_API_URL", default="https://api.ubill.dev").rstrip("/")
+UBILL_API_KEY = env("UBILL_API_KEY", default="")
+UBILL_BRAND_ID = int(env("UBILL_BRAND_ID", default="") or 0)
+# Shown at the start of every SMS while the operator sender name is "test".
+SMS_BODY_PREFIX = env("SMS_BODY_PREFIX", default="Galaxy Express-ისგან. ")
 
 LOGIN_URL = "/dashboard/login/"
 LOGIN_REDIRECT_URL = "/dashboard/shipments/"

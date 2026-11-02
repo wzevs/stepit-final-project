@@ -110,7 +110,9 @@
   <nav class="subnav" id="subnav">
     <div class="wrap">
       <a href="/#services">სერვისები</a>
+      <a href="/#how">როგორ მუშაობს</a>
       <a href="/#tracking">ტრეკინგი</a>
+      <a href="{% url 'guest-send' %}">გაგზავნა</a>
       <a href="/#about">კომპანია</a>
       <a href="{% url 'gate-login' %}">შესვლა</a>
     </div>
@@ -126,7 +128,8 @@
         <h3>სერვისი</h3>
         <ul>
           <li><a href="/#tracking">ამანათის ტრეკინგი</a></li>
-          <li><a href="/#services">მიწოდება ქალაქში</a></li>
+          <li><a href="/#how">როგორ მუშაობს</a></li>
+          <li><a href="{% url 'guest-send' %}">გაგზავნა ანგარიშის გარეშე</a></li>
           <li><a href="{% url 'gate-login' %}">შესვლა</a></li>
         </ul>
       </div>

@@ -16,8 +16,6 @@ DATABASES = {
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-
 
 def _sqlite_wal(sender, connection, **kwargs):
     if connection.vendor == "sqlite":

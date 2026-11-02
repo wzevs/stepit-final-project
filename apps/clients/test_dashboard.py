@@ -1,9 +1,11 @@
 import pytest
 from django.urls import reverse
+from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.clients.models import Client, ClientMembership
 from apps.core.models import Address
+from apps.integrations.models import ApiKey
 from apps.shipments.models import Shipment
 
 pytestmark = pytest.mark.django_db
@@ -119,3 +121,49 @@ def test_shop_cancels_and_copies_tracking_link(client, shop_user, shipment):
     assert cancelled.status_code == 302
     shipment.refresh_from_db()
     assert shipment.status == Shipment.Status.CANCELLED
+
+
+def test_shop_issues_and_revokes_an_api_key(client, shop_user, client_shop):
+    client.force_login(shop_user)
+    page = client.get(reverse("dashboard:api-access"))
+    assert page.status_code == 200
+    assert "გასაღები ჯერ არ არის" in page.content.decode()
+
+    created = client.post(reverse("dashboard:api-access"), {"intent": "issue", "name": "ERP"})
+    assert created.status_code == 302
+    key = ApiKey.objects.get(client=client_shop)
+    client_shop.refresh_from_db()
+    assert client_shop.api_enabled
+    shown = client.get(reverse("dashboard:api-access"))
+    raw = shown.context["raw_key"]
+    assert raw.startswith(f"lgx_{key.prefix}_")
+    assert raw in shown.content.decode()
+
+    api = APIClient()
+    api.credentials(HTTP_X_API_KEY=raw)
+    response = api.post(
+        "/api/v1/client/shipments/",
+        {
+            "pickup_address": {"city": "Tbilisi", "line1": "A 1"},
+            "delivery_address": {"city": "Batumi", "line1": "B 2"},
+            "recipient_name": "Nino",
+            "recipient_phone": "+995555000111",
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+
+    client.post(reverse("dashboard:api-access"), {"intent": "revoke", "key_id": key.pk})
+    key.refresh_from_db()
+    assert not key.is_active
+    denied = api.post(
+        "/api/v1/client/shipments/",
+        {
+            "pickup_address": {"city": "Tbilisi", "line1": "A 1"},
+            "delivery_address": {"city": "Batumi", "line1": "B 2"},
+            "recipient_name": "Nino",
+            "recipient_phone": "+995555000222",
+        },
+        format="json",
+    )
+    assert denied.status_code in {401, 403}

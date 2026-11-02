@@ -1,0 +1,64 @@
+{% extends "dashboard/base.html" %}
+{% block title %}API{% endblock %}
+{% block content %}
+  <h1>API გასაღები</h1>
+  <p class="muted">მაღაზიის პროგრამა ამანათებს ქმნის <code>POST /api/v1/client/shipments/</code>-ით და ჰედერით <code>X-API-Key</code>. დოკუმენტაცია: <a href="/api/docs/">/api/docs/</a></p>
+
+  {% if raw_key %}
+    <div class="card" style="margin-bottom:16px; border-color:#b7e0cb; background:#e7f5ee">
+      <p style="margin:0 0 8px"><strong>ახალი გასაღები — დააკოპირეთ ახლა</strong></p>
+      <input type="text" readonly value="{{ raw_key }}" onclick="this.select()">
+      <p class="muted" style="margin:8px 0 0">სრული ტექსტი აღარ გამოჩნდება. სიაში დარჩება მხოლოდ პრეფიქსი.</p>
+    </div>
+  {% endif %}
+
+  <form method="post" class="card" style="margin-bottom:16px">
+    {% csrf_token %}
+    <input type="hidden" name="intent" value="issue">
+    <div class="row">
+      <div class="field">
+        <label for="id_name">სახელი</label>
+        <input id="id_name" name="name" type="text" placeholder="მაგ. საიტი, ERP" maxlength="100">
+      </div>
+      <div class="field">
+        <button type="submit">ახალი გასაღები</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>სახელი</th>
+          <th>პრეფიქსი</th>
+          <th>სტატუსი</th>
+          <th>ბოლოს</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in keys %}
+          <tr>
+            <td>{{ key.name }}</td>
+            <td><code>lgx_{{ key.prefix }}_…</code></td>
+            <td>{% if key.is_active %}<span class="badge">აქტიური</span>{% else %}<span class="muted">გაუქმებული</span>{% endif %}</td>
+            <td class="muted">{% if key.last_used_at %}{{ key.last_used_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td>
+            <td>
+              {% if key.is_active %}
+                <form method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="intent" value="revoke">
+                  <input type="hidden" name="key_id" value="{{ key.pk }}">
+                  <button class="danger" type="submit">გაუქმება</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="muted">გასაღები ჯერ არ არის.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

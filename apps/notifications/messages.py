@@ -10,8 +10,17 @@ from apps.shipments.models import Shipment
 DEFAULT_TEMPLATES: dict[str, str] = {
     "tracking_link": "{company}: ამანათი {tracking_number} აღებულია. თვალი ადევნეთ: {url}",
     "out_for_delivery": "{company}: კურიერი გზაშია თქვენკენ. ამანათი {tracking_number}: {url}",
-    "delivered": "{company}: ამანათი {tracking_number} ჩაბარდა. გმადლობთ!",
+    "delivered": "{company}: ამანათი {tracking_number} ჩაბარდა თქვენს სახელზე. გმადლობთ!",
+    "delivered_sender": "{company}: ამანათი {tracking_number} ჩაბარდა მიმღებს ({recipient}).",
     "failed": "{company}: ამანათი {tracking_number} ვერ ჩაბარდა ({reason}). დაგიკავშირდებით.",
+    "walk_in_created": (
+        "{company}: ამანათი {tracking_number} დარეგისტრირდა თქვენს სახელზე "
+        "({recipient}). გამგზავნი: {sender}. კურიერს რუკაზე ნახავთ: {url}"
+    ),
+    "walk_in_sender": (
+        "{company}: ამანათი {tracking_number} მიღებულია. "
+        "კურიერს რუკაზე ნახავთ: {url}"
+    ),
 }
 
 

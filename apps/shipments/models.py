@@ -134,9 +134,23 @@ class Shipment(UUIDModel, TimeStampedModel):
         return self.status in {self.Status.DELIVERED, self.Status.RETURNED, self.Status.CANCELLED}
 
     @property
+    def is_walk_in(self) -> bool:
+        from apps.core.guest import WALKIN_CODE
+
+        return self.client.code == WALKIN_CODE
+
+    @property
     def is_live_trackable(self) -> bool:
-        """Courier position is exposed to the recipient only while heading to them."""
-        return self.status == self.Status.OUT_FOR_DELIVERY and self.courier_id is not None
+        """
+        Shop parcels: courier pin only while out for delivery.
+        Person-to-person parcels: pin as soon as a courier is bound, so sender
+        and recipient can both watch pickup and drop-off.
+        """
+        if self.courier_id is None or self.is_terminal:
+            return False
+        if self.is_walk_in:
+            return True
+        return self.status == self.Status.OUT_FOR_DELIVERY
 
 
 class ShipmentEvent(TimeStampedModel):

@@ -3,6 +3,8 @@ from datetime import timedelta
 from django.urls import reverse
 from django.utils import timezone
 
+from apps.clients.models import Client
+from apps.core.guest import WALKIN_CODE
 from apps.shipments.models import Shipment
 from apps.shipments.services import add_note, assign_courier, transition
 from apps.tracking.models import TrackingToken
@@ -86,7 +88,7 @@ def test_live_json_after_out_for_delivery(client, shipment, courier):
     transition(shipment, S.OUT_FOR_DELIVERY)
     _, raw = TrackingToken.issue(shipment)
     page = client.get(_token_url(raw))
-    assert "კურიერი გზაშია თქვენკენ" in page.content.decode()
+    assert "კურიერის მდებარეობა რუკაზე ჩანს" in page.content.decode()
     response = client.get(_token_url(raw, live=True))
     assert response.status_code == 200
     data = response.json()
@@ -95,6 +97,28 @@ def test_live_json_after_out_for_delivery(client, shipment, courier):
     assert data["courier"]["longitude"] == 44.79
     assert shipment.recipient_phone not in response.content.decode()
     assert "courier@example.com" not in response.content.decode()
+
+
+def test_walk_in_live_json_after_assign(client, company, address, courier):
+    walk = Client.objects.create(company=company, name="ფიზიკური პირები", code=WALKIN_CODE)
+    shipment = Shipment.objects.create(
+        company=company,
+        client=walk,
+        pickup_address=address,
+        delivery_address=address,
+        recipient_name="Nino",
+        recipient_phone="555000111",
+    )
+    courier.last_latitude = 41.71
+    courier.last_longitude = 44.79
+    courier.last_location_at = timezone.now()
+    courier.save()
+    assign_courier(shipment, courier)
+    _, raw = TrackingToken.issue(shipment)
+    data = client.get(_token_url(raw, live=True)).json()
+    assert data["live"] is True
+    assert data["pickup"]["city"] == "Tbilisi"
+    assert data["courier"]["latitude"] == 41.71
 
 
 def test_live_poll_does_not_increment_access_count(client, shipment):

@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import ListView
 
+from apps.integrations.models import ApiKey
 from apps.shipments.creation import ShipmentCreateError, create_shipment
 from apps.shipments.labels import PAYMENT_KA, STATUS_KA
 from apps.shipments.models import Shipment
@@ -163,6 +164,41 @@ class ShipmentDetailView(ShopMixin, View):
             pk=pk,
             client=self.shop,
         )
+
+
+class ApiAccessView(ShopMixin, View):
+    template_name = "dashboard/api.html"
+
+    def get(self, request):
+        raw = request.session.pop("new_api_key", "")
+        return render(request, self.template_name, self._context(raw_key=raw))
+
+    def post(self, request):
+        intent = request.POST.get("intent")
+        if intent == "issue":
+            name = (request.POST.get("name") or "").strip() or "API"
+            if not self.shop.api_enabled:
+                self.shop.api_enabled = True
+                self.shop.save(update_fields=["api_enabled"])
+            _key, raw = ApiKey.issue(self.shop, name)
+            request.session["new_api_key"] = raw
+            messages.success(request, "გასაღები შექმნილია. დააკოპირეთ ახლა — ხელახლა ვერ გამოჩნდება.")
+        elif intent == "revoke":
+            key = get_object_or_404(ApiKey, pk=request.POST.get("key_id"), client=self.shop)
+            key.is_active = False
+            key.save(update_fields=["is_active"])
+            messages.success(request, "გასაღები გაუქმდა.")
+        else:
+            messages.error(request, "უცნობი მოქმედება.")
+        return redirect("dashboard:api-access")
+
+    def _context(self, raw_key=""):
+        return {
+            "shop": self.shop,
+            "memberships": self.memberships,
+            "keys": self.shop.api_keys.all(),
+            "raw_key": raw_key,
+        }
 
 
 class ShipmentLabelView(ShopMixin, View):

@@ -1,3 +1,5 @@
+from apps.clients.models import Client
+from apps.core.guest import WALKIN_CODE
 from apps.notifications.models import Notification
 from apps.shipments.models import Shipment
 from apps.shipments.services import assign_courier, transition
@@ -40,6 +42,38 @@ def test_email_channel_when_recipient_has_email(shipment, courier, django_captur
         transition(shipment, S.PICKED_UP)
     channels = set(Notification.objects.filter(shipment=shipment).values_list("channel", flat=True))
     assert channels == {Notification.Channel.SMS, Notification.Channel.EMAIL}
+
+
+def test_walk_in_delivered_notifies_sender_and_recipient(
+    company, address, courier, django_capture_on_commit_callbacks
+):
+    walk = Client.objects.create(company=company, name="ფიზიკური პირები", code=WALKIN_CODE)
+    shipment = Shipment.objects.create(
+        company=company,
+        client=walk,
+        pickup_address=address,
+        delivery_address=address,
+        recipient_name="Nino",
+        recipient_phone="555000111",
+        recipient_email="nino@example.com",
+        metadata={
+            "sender_name": "Giorgi",
+            "sender_phone": "555111222",
+            "sender_email": "giorgi@example.com",
+        },
+    )
+    assign_courier(shipment, courier)
+    with django_capture_on_commit_callbacks(execute=True):
+        transition(shipment, S.PICKED_UP)
+        transition(shipment, S.OUT_FOR_DELIVERY)
+        transition(shipment, S.DELIVERED)
+    rows = set(Notification.objects.filter(shipment=shipment).values_list("channel", "template", "recipient"))
+    assert rows == {
+        (Notification.Channel.EMAIL, "delivered", "nino@example.com"),
+        (Notification.Channel.SMS, "delivered", "555000111"),
+        (Notification.Channel.EMAIL, "delivered_sender", "giorgi@example.com"),
+        (Notification.Channel.SMS, "delivered_sender", "555111222"),
+    }
 
 
 def test_company_can_disable_recipient_notifications(shipment, courier, django_capture_on_commit_callbacks):

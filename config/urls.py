@@ -4,10 +4,11 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from apps.core.views import GateLoginView, HomeView
+from apps.core.views import GateLoginView, GuestSendView, HomeView
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
+    path("send/", GuestSendView.as_view(), name="guest-send"),
     path("login/", GateLoginView.as_view(), name="gate-login"),
     path("admin/", admin.site.urls),
     path("api/v1/", include("apps.api.urls")),
