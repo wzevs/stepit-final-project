@@ -79,6 +79,13 @@ class Shipment(UUIDModel, TimeStampedModel):
         on_delete=models.SET_NULL,
         related_name="destination_shipments",
     )
+    destination_warehouse = models.ForeignKey(
+        "network.Warehouse",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="collect_shipments",
+    )
 
     # Recipient (not a User)
     recipient_name = models.CharField(max_length=150)
@@ -98,6 +105,9 @@ class Shipment(UUIDModel, TimeStampedModel):
     weight_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tariff_basis = models.CharField(max_length=10, blank=True)
     home_delivery = models.BooleanField(default=False)
+    service_level = models.CharField(max_length=10, blank=True)
+    pickup_window_start = models.TimeField(null=True, blank=True)
+    pickup_window_end = models.TimeField(null=True, blank=True)
     is_fragile = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
 
@@ -110,7 +120,10 @@ class Shipment(UUIDModel, TimeStampedModel):
     # Proof of delivery
     proof_photo = models.ImageField(upload_to="proofs/%Y/%m/", blank=True)
     proof_signature = models.ImageField(upload_to="signatures/%Y/%m/", blank=True)
+    recipient_pin = models.CharField(max_length=4, blank=True)
+    pod_method = models.CharField(max_length=10, blank=True)
     received_by = models.CharField(max_length=150, blank=True)
+    failure_code = models.CharField(max_length=20, blank=True)
     failure_reason = models.CharField(max_length=255, blank=True)
 
     # Raw integration payload / extra client fields
@@ -134,6 +147,19 @@ class Shipment(UUIDModel, TimeStampedModel):
             models.CheckConstraint(
                 condition=models.Q(shipping_fee__isnull=True) | models.Q(shipping_fee__gte=0),
                 name="shipping_fee_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(home_delivery=True, destination_warehouse__isnull=False),
+                name="home_delivery_has_no_warehouse",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(pickup_window_start__isnull=True, pickup_window_end__isnull=True)
+                | models.Q(
+                    pickup_window_start__isnull=False,
+                    pickup_window_end__isnull=False,
+                    pickup_window_start__lt=models.F("pickup_window_end"),
+                ),
+                name="pickup_window_ordered",
             ),
         ]
 
@@ -215,3 +241,27 @@ class ShipmentEvent(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.shipment} {self.kind} {self.from_status}->{self.to_status}"
+
+
+class CodLedger(TimeStampedModel):
+    """Cash a courier collected for a shop. settled_at is when the company paid the shop back."""
+
+    shipment = models.OneToOneField(Shipment, on_delete=models.PROTECT, related_name="cod_ledger")
+    company = models.ForeignKey(CourierCompany, on_delete=models.PROTECT, related_name="cod_ledger")
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name="cod_ledger")
+    courier = models.ForeignKey(CourierProfile, on_delete=models.PROTECT, related_name="cod_ledger")
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    collected_at = models.DateTimeField()
+    settled_at = models.DateTimeField(null=True, blank=True)
+    settled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-collected_at"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="cod_ledger_amount_positive"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.shipment} {self.amount}"

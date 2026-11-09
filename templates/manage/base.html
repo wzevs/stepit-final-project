@@ -79,6 +79,7 @@
         <a href="{% url 'manage:courier-list' %}">კურიერები</a>
         <a href="{% url 'manage:warehouse-list' %}">საწყობები</a>
         <a href="{% url 'manage:tariff-board' %}">ტარიფები</a>
+        <a href="{% url 'manage:cod-ledger' %}">ნაღდი</a>
       </nav>
       <form method="post" action="{% url 'manage:logout' %}">
         {% csrf_token %}

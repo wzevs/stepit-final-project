@@ -42,6 +42,9 @@
       <div class="ok">
         <p style="margin:0 0 6px">ამანათი მიღებულია.</p>
         <p style="margin:0">ტრეკინგი: <strong>{{ tracking_number }}</strong></p>
+        {% if recipient_pin %}
+          <p style="margin:10px 0 0">მიმღების PIN: <strong>{{ recipient_pin }}</strong>. კურიერს ეს კოდი უთხარით.</p>
+        {% endif %}
         {% if assigned %}
           <p style="margin:10px 0 0">კურიერი მიბმულია. რუკაზე ჩანს აღება და მიწოდება.</p>
         {% else %}

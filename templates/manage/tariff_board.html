@@ -2,7 +2,7 @@
 {% block title %}ტარიფები{% endblock %}
 {% block content %}
   <h1>ტარიფები</h1>
-  <p class="muted">ფასი ირჩევა ასე: უბანი → უბანი, თუ ასეთი წესი არ არის მაშინ ქალაქი → ქალაქი, თუ ისიც არ არის მაშინ სტანდარტული. სახლამდე მიტანა ემატება არჩეულ ფასს.</p>
+  <p class="muted">ფასი ირჩევა ასე: უბანი, მერე ქალაქი, მერე მაღაზიის საკუთარი სტანდარტული თუ გაწერილია, ბოლოს კომპანიის სტანდარტული. სახლამდე მიტანა ემატება მხოლოდ კარზე მიტანისას.</p>
 
   <div class="row" style="align-items: stretch;">
     <form method="post" class="card" style="flex: 1;">
@@ -140,6 +140,33 @@
         <button type="submit">დამატება</button>
       </form>
     {% endif %}
+  </div>
+
+  <div class="row" style="align-items: stretch; margin-top: 12px;">
+    <form method="post" class="card" style="flex: 1;">
+      {% csrf_token %}
+      <input type="hidden" name="intent" value="cutoff">
+      <h2 style="font-size: 16px; margin-top: 0;">დღევანდელი საჭრელი საათი</h2>
+      <p class="muted">ამ საათამდე „დღეს“ ნიშნავს დღევანდელ თარიღს. საათის შემდეგ დღეს აღარ ეწევა.</p>
+      <div class="field">{{ cutoff_form.same_day_cutoff.label_tag }}{{ cutoff_form.same_day_cutoff }}{{ cutoff_form.same_day_cutoff.errors }}</div>
+      {% if can_manage %}<button type="submit" style="margin-top: 12px;">შენახვა</button>{% endif %}
+    </form>
+    <form method="post" class="card" style="flex: 1;">
+      {% csrf_token %}
+      <input type="hidden" name="intent" value="shop">
+      <h2 style="font-size: 16px; margin-top: 0;">მაღაზიის ტარიფი</h2>
+      <p class="muted">ცარიელი ფასი შლის გამონაკლისს და მაღაზია კომპანიის სტანდარტულს უბრუნდება. უბნის და ქალაქის წყვილი მაინც ჭარბობს.</p>
+      {% if shop_rows %}
+        <ul class="muted">
+          {% for row in shop_rows %}<li>{{ row.client.name }} — {{ row.standard_price }} ₾</li>{% endfor %}
+        </ul>
+      {% endif %}
+      <div class="row">
+        <div class="field">{{ shop_form.client.label_tag }}{{ shop_form.client }}{{ shop_form.client.errors }}</div>
+        <div class="field">{{ shop_form.standard_price.label_tag }}{{ shop_form.standard_price }}{{ shop_form.standard_price.errors }}</div>
+      </div>
+      {% if can_manage %}<button type="submit">შენახვა</button>{% endif %}
+    </form>
   </div>
 
   <div class="card" style="margin-top: 12px;">

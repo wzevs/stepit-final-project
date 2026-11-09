@@ -1,0 +1,38 @@
+{% extends "manage/base.html" %}
+{% block title %}ნაღდი{% endblock %}
+{% block content %}
+  <h1>ნაღდი ანგარიშსწორება</h1>
+  <p class="muted">ჩაბარებულ ამანათზე კურიერმა მაღაზიის თანხა აიღო. აქ ჩანს, სანამ კომპანია ამ თანხას მაღაზიას არ დაუბრუნებს.</p>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>ამანათი</th><th>მაღაზია</th><th>კურიერი</th><th>თანხა</th><th>აღებულია</th><th>სტატუსი</th></tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td><a href="{% url 'manage:shipment-detail' row.shipment.pk %}">{{ row.shipment.tracking_number }}</a></td>
+            <td>{{ row.client.name }}</td>
+            <td>{{ row.courier.user.get_full_name|default:row.courier.user.email }}</td>
+            <td>{{ row.amount }} ₾</td>
+            <td>{{ row.collected_at|date:"d.m.Y H:i" }}</td>
+            <td>
+              {% if row.settled_at %}
+                <span class="muted">ჩაბარებულია {{ row.settled_at|date:"d.m.Y H:i" }}</span>
+              {% elif can_manage %}
+                <form method="post" style="margin: 0;">{% csrf_token %}
+                  <input type="hidden" name="ledger_id" value="{{ row.pk }}">
+                  <button type="submit">მაღაზიას ჩაბარდა</button>
+                </form>
+              {% else %}
+                <span class="muted">ღია</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="muted">ნაღდი ჩაბარება ჯერ არ არის.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

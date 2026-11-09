@@ -21,7 +21,8 @@ replaced by Gmail and is not in the code.
 - Live maps over WebSocket, with HTTP polling as fallback
 - Shop COD (cash with the courier); guest `/send/` stays prepaid
 - Guest send, shop form, and shop default pickup require a map pin; shop API may omit coords and fall back to Nominatim
-- Shipping price: district pair, else city pair, else the standard tariff, then a weight-band add-on, then home delivery. The amount is copied onto the shipment.
+- Shipping price: district pair, else city pair, else the shop's own standard when one is set, else the company standard, then a weight-band add-on, then home delivery only when the parcel goes to the door. Collecting at a company warehouse skips the home add-on. The amount is copied onto the shipment.
+- Branch hours and a pickup window, courier districts for auto-assign, a COD ledger, a recipient PIN or photo before delivery, a fixed failure-reason list, and a same-day cutoff.
 
 **Still in scope (not finished)**
 
@@ -65,7 +66,7 @@ apps/
   couriers/        CourierProfile, Device (FCM tokens)
   shipments/       Shipment, ShipmentEvent
   tracking/        CourierLocation, TrackingToken
-  network/         City, District, Warehouse, Tariff
+  network/         City, District, Warehouse, Tariff, ShopTariff
   integrations/    ApiKey, Webhook, WebhookDelivery
   notifications/   Notification outbox (SMS / Email)
 ```

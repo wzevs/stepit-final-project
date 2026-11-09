@@ -200,3 +200,26 @@ class WeightBand(TimeStampedModel):
         ceiling = max_kg if max_kg is not None else Decimal("1000000")
         other = self.max_kg if self.max_kg is not None else Decimal("1000000")
         return min_kg < other and self.min_kg < ceiling
+
+
+class ShopTariff(TimeStampedModel):
+    """
+    A shop's own standard price. An empty row means the company standard is used.
+    A district or city pair still wins, because that price is more specific.
+    """
+
+    company = models.ForeignKey(CourierCompany, on_delete=models.CASCADE, related_name="shop_tariffs")
+    client = models.OneToOneField(
+        "clients.Client", on_delete=models.CASCADE, related_name="shop_tariff"
+    )
+    standard_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(standard_price__gte=0), name="shop_tariff_price_non_negative"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.client} {self.standard_price}"

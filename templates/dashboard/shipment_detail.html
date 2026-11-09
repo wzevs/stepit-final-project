@@ -14,7 +14,20 @@
     <p><strong>მიმღები:</strong> {{ shipment.recipient_name }}, {{ shipment.recipient_phone }}
       {% if shipment.recipient_email %} · {{ shipment.recipient_email }}{% endif %}</p>
     <p><strong>საიდან:</strong> {{ shipment.pickup_address }}</p>
-    <p><strong>სად:</strong> {{ shipment.delivery_address }}
+    {% if shipment.recipient_pin %}
+      <p><strong>მიმღების PIN:</strong> {{ shipment.recipient_pin }}
+        <span class="muted">კურიერს ეს კოდი ან ჩაბარების ფოტო სჭირდება.</span></p>
+    {% endif %}
+    {% if shipment.service_level %}
+      <p><strong>დაპირება:</strong> {{ shipment.service_level|ka:service_ka }}
+        {% if shipment.scheduled_delivery_date %}· {{ shipment.scheduled_delivery_date|date:"d.m.Y" }}{% endif %}</p>
+    {% endif %}
+    {% if shipment.pickup_window_start %}
+      <p><strong>აღების ინტერვალი:</strong> {{ shipment.pickup_window_start|time:"H:i" }}–{{ shipment.pickup_window_end|time:"H:i" }}</p>
+    {% endif %}
+    <p><strong>სად:</strong>
+      {% if shipment.destination_warehouse %}საწყობი {{ shipment.destination_warehouse.name }} · {% endif %}
+      {{ shipment.delivery_address }}
       {% if shipment.delivery_address.line2 %} · {{ shipment.delivery_address.line2 }}{% endif %}
       {% if shipment.delivery_address.notes %} · {{ shipment.delivery_address.notes }}{% endif %}</p>
     {% if shipment.shipping_fee is not None %}

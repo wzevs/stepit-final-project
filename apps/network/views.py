@@ -7,14 +7,16 @@ from apps.companies.views import CompanyMixin
 from apps.network.forms import (
     CityForm,
     CityTariffForm,
+    CutoffForm,
     DistrictForm,
     DistrictTariffForm,
     MoneyForm,
     QuoteTryForm,
+    ShopPriceForm,
     WarehouseForm,
     WeightBandForm,
 )
-from apps.network.models import City, District, Tariff, Warehouse, WeightBand
+from apps.network.models import City, District, ShopTariff, Tariff, Warehouse, WeightBand
 from apps.network.quote import quote_shipping
 
 
@@ -211,6 +213,27 @@ class TariffBoardView(CompanyMixin, View):
                 return None
             form.save()
             return True
+        if intent == "cutoff":
+            form = CutoffForm(data)
+            if not form.is_valid():
+                return None
+            self.company.same_day_cutoff = form.cleaned_data["same_day_cutoff"]
+            self.company.save(update_fields=["same_day_cutoff", "updated_at"])
+            return True
+        if intent == "shop":
+            form = ShopPriceForm(data, company=self.company)
+            if not form.is_valid():
+                return None
+            client = form.cleaned_data["client"]
+            price = form.cleaned_data.get("standard_price")
+            if price is None:
+                ShopTariff.objects.filter(client=client).delete()
+                return True
+            ShopTariff.objects.update_or_create(
+                client=client,
+                defaults={"company": client.company, "standard_price": price},
+            )
+            return True
         return "უცნობი მოქმედება."
 
     def _context(self, try_form=None, quote=None, open_intent="", posted=None):
@@ -236,6 +259,16 @@ class TariffBoardView(CompanyMixin, View):
                 else WeightBandForm(company=self.company)
             ),
             "weight_rows": WeightBand.objects.filter(company=self.company).order_by("min_kg"),
+            "shop_rows": ShopTariff.objects.filter(company=self.company).select_related("client"),
+            "shop_form": (
+                ShopPriceForm(posted, company=self.company)
+                if open_intent == "shop"
+                else ShopPriceForm(company=self.company)
+            ),
+            "cutoff_form": CutoffForm(
+                posted if open_intent == "cutoff" else None,
+                initial={"same_day_cutoff": self.company.same_day_cutoff},
+            ),
             "quote": quote,
             "open_intent": open_intent,
         }

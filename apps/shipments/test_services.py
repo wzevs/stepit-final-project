@@ -113,11 +113,12 @@ def test_failed_requires_reason_and_can_retry(shipment, courier):
     _assign(shipment, courier)
     transition(shipment, S.PICKED_UP)
     transition(shipment, S.OUT_FOR_DELIVERY)
-    with pytest.raises(ShipmentError, match="failure_reason"):
+    with pytest.raises(ShipmentError, match="failure_code"):
         transition(shipment, S.FAILED)
-    transition(shipment, S.FAILED, failure_reason="not home")
+    transition(shipment, S.FAILED, failure_code="absent")
     shipment.refresh_from_db()
-    assert shipment.failure_reason == "not home"
+    assert shipment.failure_code == "absent"
+    assert shipment.failure_reason == "მიმღები ადგილზე არ არის"
     transition(shipment, S.OUT_FOR_DELIVERY)
     shipment.refresh_from_db()
     assert shipment.failure_reason == ""

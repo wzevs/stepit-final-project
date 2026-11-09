@@ -3,6 +3,7 @@ from decimal import Decimal
 from django import forms
 from django.db import transaction
 
+from apps.clients.models import Client
 from apps.core.geo import require_coords
 from apps.core.models import Address
 from apps.network.models import City, District, Warehouse, WeightBand
@@ -161,6 +162,29 @@ class WeightBandForm(forms.Form):
 
 class MoneyForm(forms.Form):
     price = forms.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal("0"), label="ფასი (₾)")
+
+
+class CutoffForm(forms.Form):
+    same_day_cutoff = forms.TimeField(
+        widget=forms.TimeInput(attrs={"type": "time"}), label="საჭრელი საათი"
+    )
+
+
+class ShopPriceForm(forms.Form):
+    client = forms.ModelChoiceField(queryset=Client.objects.none(), label="მაღაზია")
+    standard_price = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        label="სტანდარტული ფასი (₾)",
+    )
+
+    def __init__(self, *args, company, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["client"].queryset = Client.objects.filter(company=company, is_active=True).exclude(
+            code="WALKIN"
+        )
 
 
 class CityTariffForm(MoneyForm):

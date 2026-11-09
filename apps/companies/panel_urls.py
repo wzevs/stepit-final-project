@@ -6,6 +6,8 @@ from apps.network.views import PlaceListView, TariffBoardView, WarehouseFormView
 from .views import (
     ClientCreateView,
     ClientListView,
+    CodLedgerView,
+    CourierAreaView,
     CourierCreateView,
     CourierListView,
     LiveCouriersView,
@@ -34,6 +36,8 @@ urlpatterns = [
     path("live/", LiveCouriersView.as_view(), name="live-couriers"),
     path("couriers/", CourierListView.as_view(), name="courier-list"),
     path("couriers/new/", CourierCreateView.as_view(), name="courier-create"),
+    path("couriers/<uuid:pk>/areas/", CourierAreaView.as_view(), name="courier-areas"),
+    path("cod/", CodLedgerView.as_view(), name="cod-ledger"),
     path("places/", PlaceListView.as_view(), name="place-list"),
     path("warehouses/", WarehouseListView.as_view(), name="warehouse-list"),
     path("warehouses/new/", WarehouseFormView.as_view(), name="warehouse-create"),

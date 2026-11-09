@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from apps.network.models import City, District, Tariff, Warehouse, WeightBand
+from apps.network.models import City, District, ShopTariff, Tariff, Warehouse, WeightBand
 
 
 class DistrictInline(admin.TabularInline):
@@ -35,6 +35,12 @@ class WeightBandAdmin(admin.ModelAdmin):
     list_display = ("company", "min_kg", "max_kg", "surcharge")
     list_filter = ("company",)
     autocomplete_fields = ("company",)
+
+
+@admin.register(ShopTariff)
+class ShopTariffAdmin(admin.ModelAdmin):
+    list_display = ("client", "company", "standard_price")
+    autocomplete_fields = ("company", "client")
 
 
 @admin.register(Tariff)

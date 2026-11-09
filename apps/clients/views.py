@@ -14,7 +14,7 @@ from apps.integrations.models import ApiKey
 from apps.network.models import District
 from apps.network.quote import quote_shipping
 from apps.shipments.creation import ShipmentCreateError, create_shipment
-from apps.shipments.labels import PAYMENT_KA, STATUS_KA
+from apps.shipments.labels import PAYMENT_KA, SERVICE_KA, STATUS_KA
 from apps.shipments.models import Shipment
 from apps.shipments.services import InvalidTransition, ShipmentError, allowed_next, transition
 from apps.tracking.services import issue_staff_tracking_url
@@ -110,7 +110,7 @@ class ShipmentCreateView(ShopMixin, View):
                 payload=form.to_payload(),
             )
         except ShipmentCreateError as exc:
-            form.add_error(None, exc.detail if isinstance(exc.detail, str) else "ამანათი ვერ შეიქმნა.")
+            _apply_create_error(form, exc.detail)
             return render(request, self.template_name, self._context(form))
         if created:
             messages.success(request, f"ამანათი შეიქმნა: {shipment.tracking_number}")
@@ -147,6 +147,7 @@ class ShipmentDetailView(ShopMixin, View):
                 "memberships": self.memberships,
                 "status_ka": STATUS_KA,
                 "payment_ka": PAYMENT_KA,
+                "service_ka": SERVICE_KA,
                 "can_cancel": Shipment.Status.CANCELLED in allowed_next(shipment.status),
                 "tracking_url": tracking_url,
             },
@@ -196,6 +197,7 @@ class QuoteView(ShopMixin, View):
             destination=_district(request.GET.get("destination")),
             home_delivery=request.GET.get("home") in {"1", "on", "true"},
             weight_kg=weight,
+            client=self.shop,
         )
         if quoted is None:
             return JsonResponse({"ok": False, "detail": "სტანდარტული ტარიფი ჯერ არ არის."})
@@ -211,6 +213,17 @@ class QuoteView(ShopMixin, View):
                 "basis": quoted.basis_ka,
             }
         )
+
+
+def _apply_create_error(form, detail):
+    if isinstance(detail, dict):
+        for key, message in detail.items():
+            if key in form.fields:
+                form.add_error(key, message)
+            else:
+                form.add_error(None, message)
+        return
+    form.add_error(None, detail if isinstance(detail, str) else "ამანათი ვერ შეიქმნა.")
 
 
 def _district(raw):
@@ -276,6 +289,8 @@ class BranchFormView(ShopMixin, View):
                 "line1": branch.address.line1,
                 "latitude": branch.address.latitude,
                 "longitude": branch.address.longitude,
+                "opens_at": branch.opens_at,
+                "closes_at": branch.closes_at,
                 "is_default": branch.is_default,
             }
         return BranchForm(data, shop=self.shop, instance=branch, initial=initial)

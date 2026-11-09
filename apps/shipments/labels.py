@@ -17,3 +17,8 @@ PAYMENT_KA = {
     Shipment.PaymentType.PREPAID: "წინასწარ",
     Shipment.PaymentType.COD: "თანხა ადგილზე",
 }
+
+SERVICE_KA = {
+    "same_day": "დღეს",
+    "next_day": "ხვალ",
+}
