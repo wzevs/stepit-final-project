@@ -244,3 +244,91 @@ def test_shop_issues_and_revokes_an_api_key(client, shop_user, client_shop):
         format="json",
     )
     assert denied.status_code in {401, 403}
+
+
+def test_shop_saves_a_branch_and_the_parcel_price(client, shop_user, client_shop, company):
+    from decimal import Decimal
+
+    from apps.clients.models import PickupPoint
+    from apps.network.models import City, District, Tariff
+
+    city, _ = City.objects.get_or_create(name="თბილისი")
+    vake, _ = District.objects.get_or_create(city=city, name="ვაკე")
+    saburtalo, _ = District.objects.get_or_create(city=city, name="საბურთალო")
+    Tariff.objects.create(company=company, kind=Tariff.Kind.STANDARD, price=Decimal("5"))
+    Tariff.objects.create(
+        company=company,
+        kind=Tariff.Kind.DISTRICT,
+        price=Decimal("4"),
+        origin_district=vake,
+        destination_district=saburtalo,
+    )
+    Tariff.objects.create(company=company, kind=Tariff.Kind.HOME, price=Decimal("2"))
+    client.force_login(shop_user)
+    response = client.post(
+        reverse("dashboard:branch-create"),
+        {
+            "name": "ვაკის ფილიალი",
+            "district": vake.pk,
+            "line1": "ჭავჭავაძის 5",
+            "latitude": "41.710000",
+            "longitude": "44.770000",
+            "is_default": "on",
+        },
+    )
+    assert response.status_code == 302
+    branch = PickupPoint.objects.get(client=client_shop)
+    assert branch.district_id == vake.pk
+    assert branch.is_default is True
+
+    response = client.post(
+        reverse("dashboard:shipment-create"),
+        {
+            "pickup_point": branch.pk,
+            "delivery_city": "თბილისი",
+            "delivery_line1": "ვაჟა-ფშაველას 10",
+            "destination_district": saburtalo.pk,
+            "home_delivery": "on",
+            "recipient_name": "Nino",
+            "recipient_phone": "+995555000333",
+            "payment_type": "prepaid",
+            "delivery_lat": "41.723000",
+            "delivery_lng": "44.751000",
+        },
+    )
+    shipment = Shipment.objects.get()
+    assert response.status_code == 302
+    assert shipment.shipping_fee == Decimal("6")
+    assert shipment.tariff_basis == "district"
+    assert shipment.home_fee == Decimal("2")
+    page = client.get(
+        reverse("dashboard:quote"),
+        {"pickup_point": branch.pk, "destination": saburtalo.pk, "home": "1"},
+    )
+    assert page.json()["amount"] == "6.00"
+
+
+def test_shop_must_give_a_weight_when_bands_exist(client, shop_user, company):
+    from decimal import Decimal
+
+    from apps.network.models import Tariff, WeightBand
+
+    Tariff.objects.create(company=company, kind=Tariff.Kind.STANDARD, price=Decimal("5"))
+    WeightBand.objects.create(company=company, min_kg=0, max_kg=5, surcharge=Decimal("2"))
+    client.force_login(shop_user)
+    missing = client.post(
+        reverse("dashboard:shipment-create"),
+        {
+            "pickup_city": "Tbilisi",
+            "pickup_line1": "Chavchavadze 5",
+            "delivery_city": "Batumi",
+            "delivery_line1": "Rustaveli 2",
+            "recipient_name": "Nino",
+            "recipient_phone": "+995555000444",
+            "payment_type": "prepaid",
+            **_PINS,
+        },
+    )
+    assert missing.status_code == 200
+    assert "წონა აუცილებელია" in missing.content.decode()
+    assert not Shipment.objects.exists()

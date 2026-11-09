@@ -19,6 +19,10 @@
       {% if not shipment.pickup_address.is_geocoded %}<span class="muted">· პინი არ არის</span>{% endif %}</p>
     <p><strong>სად:</strong> {{ shipment.delivery_address }}
       {% if not shipment.delivery_address.is_geocoded %}<span class="muted">· პინი არ არის</span>{% endif %}</p>
+    {% if shipment.shipping_fee is not None %}
+      <p><strong>ტარიფი:</strong> {{ shipment.shipping_fee }} ₾
+        <span class="muted">{{ shipment.tariff_basis_label }}{% if shipment.weight_fee %}, წონა +{{ shipment.weight_fee }} ₾{% endif %}{% if shipment.home_delivery %}, სახლამდე +{{ shipment.home_fee }} ₾{% endif %}</span></p>
+    {% endif %}
     <p><strong>კურიერი:</strong>
       {% if shipment.courier %}{{ shipment.courier.user.get_full_name|default:shipment.courier.user.email }}{% else %}არ არის{% endif %}
     </p>

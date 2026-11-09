@@ -267,3 +267,50 @@ def test_dispatcher_registers_a_courier(client, manager, company):
     assert profile.company_id == company.pk
     assert profile.vehicle_type == "moto"
     assert profile.user.role == User.Role.COURIER
+
+
+def test_dispatcher_opens_a_city_warehouse_and_prices_a_route(client, manager, company):
+    from decimal import Decimal
+
+    from apps.network.models import City, District, Tariff, Warehouse
+
+    city, _ = City.objects.get_or_create(name="თბილისი")
+    district, _ = District.objects.get_or_create(city=city, name="ვაკე")
+    client.force_login(manager)
+    created = client.post(
+        reverse("manage:warehouse-create"),
+        {
+            "name": "ვაკის საწყობი",
+            "kind": "district",
+            "city": city.pk,
+            "district": district.pk,
+            "line1": "ჭავჭავაძის 1",
+            "latitude": "41.710000",
+            "longitude": "44.770000",
+            "is_active": "on",
+        },
+    )
+    assert created.status_code == 302
+    warehouse = Warehouse.objects.get(company=company)
+    assert warehouse.kind == Warehouse.Kind.DISTRICT
+    assert warehouse.district_id == district.pk
+
+    priced = client.post(
+        reverse("manage:tariff-board"),
+        {"intent": "standard", "price": "7.50"},
+    )
+    assert priced.status_code == 302
+    assert Tariff.objects.get(company=company, kind=Tariff.Kind.STANDARD).price == Decimal("7.50")
+
+    tried = client.post(
+        reverse("manage:tariff-board"),
+        {"intent": "try", "origin_district": district.pk, "destination_district": district.pk},
+    )
+    assert tried.status_code == 200
+    assert "7.50" in tried.content.decode()
+
+
+def test_viewer_cannot_add_a_city(client, viewer):
+    client.force_login(viewer)
+    response = client.post(reverse("manage:place-list"), {"intent": "city", "name": "სიღნაღი"})
+    assert response.status_code == 403

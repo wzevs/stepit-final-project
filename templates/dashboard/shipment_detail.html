@@ -17,6 +17,10 @@
     <p><strong>სად:</strong> {{ shipment.delivery_address }}
       {% if shipment.delivery_address.line2 %} · {{ shipment.delivery_address.line2 }}{% endif %}
       {% if shipment.delivery_address.notes %} · {{ shipment.delivery_address.notes }}{% endif %}</p>
+    {% if shipment.shipping_fee is not None %}
+      <p><strong>ტარიფი:</strong> {{ shipment.shipping_fee }} ₾
+        <span class="muted">{{ shipment.tariff_basis_label }}{% if shipment.weight_fee %}, წონა +{{ shipment.weight_fee }} ₾{% endif %}{% if shipment.home_delivery %}, სახლამდე +{{ shipment.home_fee }} ₾{% endif %}</span></p>
+    {% endif %}
     {% if shipment.description %}<p><strong>აღწერა:</strong> {{ shipment.description }}</p>{% endif %}
     {% if shipment.failure_reason %}<p><strong>ვერ ჩაბარდა:</strong> {{ shipment.failure_reason }}</p>{% endif %}
     {% if shipment.proof_photo %}

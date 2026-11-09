@@ -77,6 +77,8 @@
         <a href="{% url 'manage:shipment-list' %}">ამანათები</a>
         <a href="{% url 'manage:client-list' %}">მაღაზიები</a>
         <a href="{% url 'manage:courier-list' %}">კურიერები</a>
+        <a href="{% url 'manage:warehouse-list' %}">საწყობები</a>
+        <a href="{% url 'manage:tariff-board' %}">ტარიფები</a>
       </nav>
       <form method="post" action="{% url 'manage:logout' %}">
         {% csrf_token %}

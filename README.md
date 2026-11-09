@@ -12,8 +12,8 @@ replaced by Gmail and is not in the code.
 
 - Public site: track by number, person-to-person send (`/send/`), role login
 - Guest C2C: auto-assign a courier, live map links for sender and recipient
-- Shop dashboard (manual parcels, API keys) and shop HTTP API (`X-API-Key`)
-- Company panel: shops, couriers, assign / cancel / return, live dispatcher map
+- Shop dashboard (manual parcels, branches, API keys) and shop HTTP API (`X-API-Key`)
+- Company panel: shops, couriers, city and district warehouses, tariffs, assign / cancel / return, live dispatcher map
 - Courier map in the browser (`/courier/map/`) over JWT
 - Notifications: Gmail SMTP + uBill SMS to sender and recipient
 - Outbox worker: `process_outbox`
@@ -21,6 +21,7 @@ replaced by Gmail and is not in the code.
 - Live maps over WebSocket, with HTTP polling as fallback
 - Shop COD (cash with the courier); guest `/send/` stays prepaid
 - Guest send, shop form, and shop default pickup require a map pin; shop API may omit coords and fall back to Nominatim
+- Shipping price: district pair, else city pair, else the standard tariff, then a weight-band add-on, then home delivery. The amount is copied onto the shipment.
 
 **Still in scope (not finished)**
 
@@ -48,7 +49,7 @@ A recipient SMS/email link opens http://127.0.0.1:8000/t/<token>/. That page is 
 ## Stack
 
 - Python 3.13, Django 5.2, Django REST Framework
-- SQLite for local development, PostgreSQL in production
+- SQLite for a machine without PostgreSQL. Local development and the defense use PostgreSQL (`DATABASE_URL`).
 - JWT (SimpleJWT) for staff / courier auth, API keys for client integrations
 - Leaflet maps (Esri / CARTO tiles). Forms require a pin; only the shop API geocodes by street name.
 
@@ -64,6 +65,7 @@ apps/
   couriers/        CourierProfile, Device (FCM tokens)
   shipments/       Shipment, ShipmentEvent
   tracking/        CourierLocation, TrackingToken
+  network/         City, District, Warehouse, Tariff
   integrations/    ApiKey, Webhook, WebhookDelivery
   notifications/   Notification outbox (SMS / Email)
 ```
@@ -120,12 +122,19 @@ Interactive docs: http://127.0.0.1:8000/api/docs/
 Shops without an integration sign in at http://127.0.0.1:8000/dashboard/login/ and add parcels by hand.
 The dashboard account needs a ClientMembership; API access also requires Client.api_enabled.
 From a shipment page the shop can cancel (before pickup), print a label, and copy a recipient tracking link.
+Branches live at http://127.0.0.1:8000/dashboard/branches/. Each branch has a district. A new parcel picked from that branch is priced from the district, then the city, then the standard tariff. Home delivery is an add-on. The price is stored on the shipment.
 
 ## Manager panel
 
 Courier-company staff can also sign in at http://127.0.0.1:8000/manage/login/.
 They need a CompanyMembership. Owners and dispatchers register shops (optional default pickup point — with a required map pin) and couriers, assign parcels, cancel, or return to sender. On a shipment they can drop a map pin when a shop API address was not geocoded.
 Viewers can look, but cannot change anything. "მიმღების ლინკი" mints a /t/<token>/ URL without sending SMS.
+
+Warehouses are http://127.0.0.1:8000/manage/warehouses/. A city warehouse has no district. A district warehouse must sit in a district of that same city; on PostgreSQL a trigger rejects a mismatch. Cities and districts are http://127.0.0.1:8000/manage/places/. `python manage.py seed_places` loads the main Georgian cities (the first migrate does this too).
+
+Tariffs are http://127.0.0.1:8000/manage/tariffs/. One standard price and one home-delivery add-on per company. City pairs and district pairs are separate rows. The page can calculate a sample route. Two SQL views, `network_tariff_sheet` and `network_warehouse_sheet`, join those tables for the defense.
+
+Table drawings for the presentation are in `presentation/tables.html`. Open that file in a browser.
 
 The live map is http://127.0.0.1:8000/manage/map/. It opens a WebSocket at /ws/manage/live/ and moves the pin when a GPS point arrives. If the socket drops, it falls back to polling /manage/live/. Open it in a separate browser from the courier tabs so the session cookie is not overwritten.
 

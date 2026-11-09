@@ -65,6 +65,20 @@ class Shipment(UUIDModel, TimeStampedModel):
     )
     pickup_address = models.ForeignKey(Address, on_delete=models.PROTECT, related_name="pickup_shipments")
     delivery_address = models.ForeignKey(Address, on_delete=models.PROTECT, related_name="delivery_shipments")
+    origin_district = models.ForeignKey(
+        "network.District",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="origin_shipments",
+    )
+    destination_district = models.ForeignKey(
+        "network.District",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="destination_shipments",
+    )
 
     # Recipient (not a User)
     recipient_name = models.CharField(max_length=150)
@@ -78,6 +92,12 @@ class Shipment(UUIDModel, TimeStampedModel):
     declared_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     payment_type = models.CharField(max_length=10, choices=PaymentType.choices, default=PaymentType.PREPAID)
     cod_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    route_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    home_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    weight_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    tariff_basis = models.CharField(max_length=10, blank=True)
+    home_delivery = models.BooleanField(default=False)
     is_fragile = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
 
@@ -111,6 +131,10 @@ class Shipment(UUIDModel, TimeStampedModel):
                 name="uniq_external_id_per_client",
             ),
             models.CheckConstraint(condition=models.Q(cod_amount__gte=0), name="cod_amount_non_negative"),
+            models.CheckConstraint(
+                condition=models.Q(shipping_fee__isnull=True) | models.Q(shipping_fee__gte=0),
+                name="shipping_fee_non_negative",
+            ),
         ]
 
     def save(self, *args, **kwargs):
@@ -151,6 +175,12 @@ class Shipment(UUIDModel, TimeStampedModel):
         if self.is_walk_in:
             return True
         return self.status == self.Status.OUT_FOR_DELIVERY
+
+    @property
+    def tariff_basis_label(self) -> str:
+        from apps.network.quote import BASIS_KA
+
+        return BASIS_KA.get(self.tariff_basis, "")
 
 
 class ShipmentEvent(TimeStampedModel):

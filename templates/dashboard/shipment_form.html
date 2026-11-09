@@ -42,6 +42,17 @@
       <div id="delivery-map" class="pick-map"></div>
     </div>
     <div class="field" style="margin-bottom: 12px;">{{ form.delivery_notes.label_tag }}{{ form.delivery_notes }}{{ form.delivery_notes.errors }}</div>
+    <h2 style="font-size: 16px;">ტარიფი</h2>
+    <p class="muted" style="margin-top: 0;">ფილიალის უბანი ჭარბობს „საიდან: უბანს“. ჯერ ეძებს უბან-უბანს, მერე ქალაქ-ქალაქს, ბოლოს სტანდარტულს. სახლამდე მიტანა ემატება ზემოდან.</p>
+    <div class="row">
+      <div class="field">{{ form.origin_district.label_tag }}{{ form.origin_district }}{{ form.origin_district.errors }}</div>
+      <div class="field">{{ form.destination_district.label_tag }}{{ form.destination_district }}{{ form.destination_district.errors }}</div>
+    </div>
+    <div class="field" style="margin-bottom: 12px;">
+      <label>{{ form.home_delivery }} {{ form.home_delivery.label }}</label>
+    </div>
+    <p id="quote-box" class="card" style="background: #f7faf8; margin-bottom: 16px;">ტარიფი გამოჩნდება არჩევის შემდეგ.</p>
+    {{ branches|json_script:"branch-data" }}
     <h2 style="font-size: 16px;">ამანათი</h2>
     <div class="row">
       <div class="field">{{ form.description.label_tag }}{{ form.description }}{{ form.description.errors }}</div>
@@ -77,6 +88,44 @@
     sync();
     bindLocationPicker("pickup-map", document.getElementById("id_pickup_lat"), document.getElementById("id_pickup_lng"));
     bindLocationPicker("delivery-map", document.getElementById("id_delivery_lat"), document.getElementById("id_delivery_lng"));
+
+    const branches = JSON.parse(document.getElementById("branch-data").textContent);
+    const quoteBox = document.getElementById("quote-box");
+    const pointSel = document.getElementById("id_pickup_point");
+    const originSel = document.getElementById("id_origin_district");
+    const destSel = document.getElementById("id_destination_district");
+    const homeBox = document.getElementById("id_home_delivery");
+    function refreshQuote() {
+      const params = new URLSearchParams({
+        pickup_point: pointSel.value,
+        origin: originSel.value,
+        destination: destSel.value,
+        home: homeBox.checked ? "1" : "0",
+        weight: document.getElementById("id_weight_kg").value,
+      });
+      fetch("{% url 'dashboard:quote' %}?" + params.toString())
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          if (!data.ok) {
+            quoteBox.textContent = data.detail;
+            return;
+          }
+          quoteBox.textContent = data.amount + " ₾ · " + data.basis
+            + (data.weight_fee && data.weight_fee !== "0.00" ? " + წონა " + data.weight_fee + " ₾" : "")
+            + (data.home_fee !== "0.00" ? " + სახლამდე " + data.home_fee + " ₾" : "");
+        })
+        .catch(function () { quoteBox.textContent = "ტარიფი ვერ დაითვალა."; });
+    }
+    const weightInput = document.getElementById("id_weight_kg");
+    [pointSel, originSel, destSel, homeBox, weightInput].forEach(function (el) {
+      el.addEventListener("change", refreshQuote);
+    });
+    weightInput.addEventListener("input", refreshQuote);
+    pointSel.addEventListener("change", function () {
+      const match = branches.find(function (row) { return String(row.id) === pointSel.value; });
+      if (match && match.district_id) originSel.value = String(match.district_id);
+    });
+    refreshQuote();
   })();
   </script>
 {% endblock %}

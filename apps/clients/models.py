@@ -31,10 +31,17 @@ class Client(UUIDModel, TimeStampedModel):
 
 
 class PickupPoint(TimeStampedModel):
-    """A client's branch/warehouse where couriers pick parcels up."""
+    """A shop branch. Couriers collect parcels here, and its district prices the route."""
 
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="pickup_points")
     name = models.CharField(max_length=150)
+    district = models.ForeignKey(
+        "network.District",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="pickup_points",
+    )
     address = models.ForeignKey(Address, on_delete=models.PROTECT, related_name="+")
     contact_phone = models.CharField(max_length=20, blank=True)
     is_default = models.BooleanField(default=False)

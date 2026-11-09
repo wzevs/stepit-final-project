@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 from apps.clients.models import PickupPoint
 from apps.core.geo import geocode
 from apps.core.models import Address
+from apps.network.quote import quote_shipping
 from apps.shipments.models import Shipment
 
 
@@ -59,6 +60,22 @@ def _insert(client, source, payload, external_id, created_by) -> Shipment:
     if payment_type != Shipment.PaymentType.COD:
         cod_amount = 0
 
+    origin = payload.get("origin_district")
+    if origin is None and pickup_point is not None and pickup_point.district_id:
+        origin = pickup_point.district
+    destination = payload.get("destination_district")
+    home_delivery = bool(payload.get("home_delivery"))
+    weight_kg = payload.get("weight_kg")
+    quoted = quote_shipping(
+        company=client.company,
+        origin=origin,
+        destination=destination,
+        home_delivery=home_delivery,
+        weight_kg=weight_kg,
+    )
+    if quoted is not None and quoted.weight_uncovered:
+        raise ShipmentCreateError({"weight_kg": "ამ წონის საფეხური არ არის."})
+
     return Shipment.objects.create(
         company=client.company,
         client=client,
@@ -73,11 +90,19 @@ def _insert(client, source, payload, external_id, created_by) -> Shipment:
         recipient_phone=payload["recipient_phone"].strip(),
         recipient_email=(payload.get("recipient_email") or "").strip(),
         description=(payload.get("description") or "").strip(),
-        weight_kg=payload.get("weight_kg"),
+        weight_kg=weight_kg,
         dimensions_cm=(payload.get("dimensions_cm") or "").strip(),
         declared_value=payload.get("declared_value"),
         payment_type=payment_type,
         cod_amount=cod_amount,
+        origin_district=origin,
+        destination_district=destination,
+        home_delivery=home_delivery,
+        shipping_fee=quoted.amount if quoted else None,
+        route_fee=quoted.route_fee if quoted else None,
+        home_fee=quoted.home_fee if quoted else 0,
+        weight_fee=quoted.weight_fee if quoted else 0,
+        tariff_basis=quoted.basis if quoted else "",
         is_fragile=bool(payload.get("is_fragile")),
         notes=(payload.get("notes") or "").strip(),
         scheduled_pickup_at=payload.get("scheduled_pickup_at"),
@@ -121,4 +146,6 @@ def _snapshot(source: Address) -> Address:
 
 
 def pickup_points_for(client):
-    return PickupPoint.objects.filter(client=client, is_active=True).select_related("address")
+    return PickupPoint.objects.filter(client=client, is_active=True).select_related(
+        "address", "district", "district__city"
+    )

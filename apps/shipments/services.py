@@ -8,7 +8,7 @@ signal is sent after commit. Notifications, tracking links, webhooks and
 
 import logging
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from apps.couriers.models import CourierProfile
@@ -203,7 +203,17 @@ def add_note(shipment: Shipment, note: str, *, actor=None, is_public: bool = Fal
 
 
 def _lock(shipment: Shipment) -> Shipment:
-    return Shipment.objects.select_for_update().select_related("company", "courier").get(pk=shipment.pk)
+    """
+    Lock the shipment row. Courier is a nullable relation, and PostgreSQL
+    refuses FOR UPDATE on the outer side of that join, so the lock names
+    only this table.
+    """
+    query = Shipment.objects.select_related("company", "courier")
+    if connection.vendor == "postgresql":
+        query = query.select_for_update(of=("self",))
+    else:
+        query = query.select_for_update()
+    return query.get(pk=shipment.pk)
 
 
 def _sync(target: Shipment, source: Shipment) -> None:

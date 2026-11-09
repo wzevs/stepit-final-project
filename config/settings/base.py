@@ -53,6 +53,7 @@ LOCAL_APPS = [
     "apps.core",
     "apps.accounts",
     "apps.companies",
+    "apps.network",
     "apps.clients",
     "apps.couriers",
     "apps.shipments",
