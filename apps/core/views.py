@@ -92,6 +92,7 @@ class GuestSendView(View):
         sender_url = request.session.pop("guest_sender_url", "")
         recipient_url = request.session.pop("guest_recipient_url", "")
         assigned = request.session.pop("guest_assigned", False)
+        pin = request.session.pop("guest_pin", "")
         return render(
             request,
             self.template_name,
@@ -101,6 +102,7 @@ class GuestSendView(View):
                 "sender_url": sender_url,
                 "recipient_url": recipient_url,
                 "assigned": assigned,
+                "recipient_pin": pin,
             },
         )
 
@@ -108,7 +110,7 @@ class GuestSendView(View):
         form = GuestSendForm(request.POST)
         if not form.is_valid():
             return render(request, self.template_name, {"form": form, "tracking_number": ""})
-        client = walk_in_client()
+        client = walk_in_client(form.cleaned_data.get("company"))
         if client is None:
             form.add_error(None, "მიწოდება ჯერ არ არის ხელმისაწვდომი. სცადეთ მოგვიანებით.")
             return render(request, self.template_name, {"form": form, "tracking_number": ""})
@@ -126,6 +128,7 @@ class GuestSendView(View):
         request.session["guest_sender_url"] = access["sender_url"]
         request.session["guest_recipient_url"] = access["recipient_url"]
         request.session["guest_assigned"] = access["assigned"]
+        request.session["guest_pin"] = shipment.recipient_pin
         messages.success(request, f"ამანათი მიღებულია. ტრეკინგი: {shipment.tracking_number}")
         if access.get("email_sent"):
             messages.success(request, "რუკის ლინკი გამგზავნსაც და მიმღებსაც ელფოსტაზე გაეგზავნა.")

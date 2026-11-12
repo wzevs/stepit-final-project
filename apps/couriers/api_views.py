@@ -127,17 +127,16 @@ class CourierShipmentViewSet(
                 latitude=serializer.validated_data.get("latitude"),
                 longitude=serializer.validated_data.get("longitude"),
                 failure_reason=serializer.validated_data.get("failure_reason") or "",
+                failure_code=serializer.validated_data.get("failure_code") or "",
                 received_by=serializer.validated_data.get("received_by") or "",
+                pod_pin=serializer.validated_data.get("pod_pin") or "",
+                proof_photo=serializer.validated_data.get("proof_photo"),
             )
         except (InvalidTransition, ShipmentError) as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
 
-        photo = serializer.validated_data.get("proof_photo")
         signature = serializer.validated_data.get("proof_signature")
         fields = []
-        if photo:
-            shipment.proof_photo = photo
-            fields.append("proof_photo")
         if signature:
             shipment.proof_signature = signature
             fields.append("proof_signature")

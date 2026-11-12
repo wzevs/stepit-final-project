@@ -1,3 +1,5 @@
+from datetime import time
+
 from django.conf import settings
 from django.db import models
 
@@ -19,6 +21,7 @@ class CourierCompany(UUIDModel, TimeStampedModel):
         unique=True,
         help_text="Prefix for tracking numbers, e.g. GLX -> GLX-7K2M9Q",
     )
+    same_day_cutoff = models.TimeField(default=time(15, 0))
     settings = models.JSONField(default=dict, blank=True)
 
     class Meta:

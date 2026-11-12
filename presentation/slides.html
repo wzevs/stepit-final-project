@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8">
+  <title>Galaxy Express — პრეზენტაცია</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font: 18px/1.45 "Segoe UI", sans-serif;
+      color: #1c1e21;
+      background: #0e2a23;
+    }
+    .slide {
+      display: none;
+      min-height: 100%;
+      padding: 36px 56px 108px;
+      background: #f4f6f5;
+    }
+    .slide.active { display: block; }
+    .kicker {
+      margin: 0 0 8px;
+      color: #0f6b4c;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0 0 12px; font-size: 40px; line-height: 1.15; }
+    h2 { margin: 0 0 18px; font-size: 32px; line-height: 1.2; }
+    p { margin: 0 0 12px; }
+    .muted { color: #5c6560; }
+    .lead { font-size: 22px; max-width: 920px; }
+    .grid { display: grid; gap: 12px; }
+    .g2 { grid-template-columns: 1fr 1fr; }
+    .g3 { grid-template-columns: 1fr 1fr 1fr; }
+    .g4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .card {
+      background: #fff;
+      border: 1px solid #d5dbd8;
+      padding: 14px 16px;
+    }
+    .card h3 { margin: 0 0 6px; font-size: 18px; }
+    .card p { margin: 0; color: #3d4a44; font-size: 16px; }
+    ol.steps { margin: 0; padding-left: 22px; }
+    ol.steps li { margin: 0 0 8px; }
+    code, .sql {
+      font-family: Consolas, monospace;
+      font-size: 15px;
+    }
+    .sql {
+      background: #143d32;
+      color: #e7f5ee;
+      padding: 14px 16px;
+      overflow: auto;
+      white-space: pre;
+    }
+    .bar {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: #143d32;
+      color: #e7f5ee;
+      font-size: 14px;
+    }
+    .bar button {
+      background: transparent;
+      color: #e7f5ee;
+      border: 1px solid #8fbfa8;
+      padding: 4px 10px;
+      font: inherit;
+      cursor: pointer;
+    }
+    .notes {
+      display: none;
+      position: fixed;
+      left: 16px; right: 16px; bottom: 52px;
+      background: #fff8e8;
+      border: 1px solid #e2c98a;
+      padding: 10px 14px;
+      font-size: 15px;
+      max-height: 28vh;
+      overflow: auto;
+    }
+    body.show-notes .slide.active .notes { display: block; }
+    a { color: #0f6b4c; }
+    .title-slide { background: #143d32; color: #f4f6f5; }
+    .title-slide .kicker { color: #b7e2cf; }
+    .title-slide .muted { color: #c5ddd2; }
+    .title-slide a { color: #d8f5e8; }
+  </style>
+</head>
+<body>
+  <section class="slide title-slide active">
+    <p class="kicker">StepIT · ფინალური პროექტი</p>
+    <h1>Galaxy Express</h1>
+    <p class="lead">საკურიერო პლატფორმა მაღაზიისთვის, კერძო გამგზავნისთვის და კომპანიისთვის.</p>
+    <p class="muted">Python · Django · PostgreSQL</p>
+    <p class="muted" style="margin-top: 28px;">ისრები ან სივრცე — სლაიდი. N — სალაპარაკო ტექსტი. ცხრილები: <a href="tables.html">tables.html</a></p>
+    <aside class="notes">გამარჯობა. ავაწყე Galaxy Express — ერთი სისტემა, სადაც მაღაზია აგზავნის ამანათს, კურიერი მიჰქვს, კომპანია ხედავს რუკას და ფასს, მიმღები კი ნომრით ადევნებს თვალს. ბაზა PostgreSQL-ია და ფასის წესები იქ ცხოვრობს.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">01</p>
+    <h2>ოთხი მომხმარებელი, ერთი ამანათი</h2>
+    <div class="grid g4">
+      <div class="card"><h3>სტუმარი</h3><p>კარიდან კარამდე აგზავნის <code>/send/</code>-ზე. წინასწარ იხდის. რუკაზე პინი აუცილებელია.</p></div>
+      <div class="card"><h3>მაღაზია</h3><p>ფილიალიდან აგზავნის ხელით ან <code>X-API-Key</code>-ით. შეუძლია COD, ანუ თანხა კურიერთან.</p></div>
+      <div class="card"><h3>კურიერი</h3><p>რუკაზე ხედავს ამანათს, სტატუსს ცვლის და წერტილს აგზავნის. ავტორიზაცია JWT-ითაა.</p></div>
+      <div class="card"><h3>კომპანია</h3><p>მაღაზიებს, კურიერებს, საწყობებს და ტარიფს მართავს. დისპეტჩერის რუკა ცოცხალია.</p></div>
+    </div>
+    <aside class="notes">ოთხი კარი ერთ ამანათზე იყრის თავს. სტუმარი და მაღაზია ქმნის, კურიერი მიჰქვს, კომპანია აკონტროლებს ფასს და მარშრუტს. მიმღები ცალკე ანგარიში არ არის — ლინკით შედის.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">02</p>
+    <h2>რა მუშაობს</h2>
+    <div class="grid g2">
+      <div class="card"><h3>საჯარო საიტი</h3><p>თვალყური ნომრით. მიმღების ლინკი <code>/t/&lt;token&gt;/</code> გზაში კურიერის პინსაც აჩვენებს. ტელეფონი და კურიერის სახელი იქ არ ჩანს.</p></div>
+      <div class="card"><h3>ფასი ბაზიდან</h3><p>უბანი, ქალაქი, მაღაზიის ტარიფი, სტანდარტული, წონა, სახლამდე. თანხა ამანათზე იწერება და მერე აღარ იცვლება.</p></div>
+      <div class="card"><h3>ქსელი</h3><p>ქალაქი, უბანი, ქალაქის საწყობი, უბნის საწყობი, მაღაზიის ფილიალი და საათები.</p></div>
+      <div class="card"><h3>ცოცხალი რუკა</h3><p>WebSocket, გაწყვეტისას HTTP გამოკითხვა. შეტყობინება მიდის ფოსტით და SMS-ით.</p></div>
+    </div>
+    <aside class="notes">Android აპი ჯერ არ არის. კურიერის API და ბრაუზერის რუკა მზადაა, ამიტომ დემო ბრაუზერიდან მიდის. Telegram ამოღებულია — არხებია Gmail და uBill.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">03</p>
+    <h2>როგორ დგას</h2>
+    <div class="grid g3">
+      <div class="card"><h3>სერვერი</h3><p>Django 5.2 და Django REST Framework. პანელები სესიით შედის, კურიერის რუკა JWT-ით, მაღაზიის პროგრამა API გასაღებით.</p></div>
+      <div class="card"><h3>ბაზა</h3><p>PostgreSQL. CHECK, უნიკალური წესი, ორი PL/pgSQL ტრიგერი და სამი VIEW. SQLite მხოლოდ სარეზერვოა, თუ Postgres არ დგას.</p></div>
+      <div class="card"><h3>რუკა</h3><p>Leaflet. პინს ფორმა ითხოვს. ქუჩის სახელით ძებნა მხოლოდ მაღაზიის API-ზეა, Nominatim-ით.</p></div>
+    </div>
+    <p class="muted" style="margin-top: 16px;">აპები: accounts, companies, clients, couriers, shipments, tracking, network, notifications, integrations.</p>
+    <aside class="notes">სამი ავტორიზაცია სამი მიზეზითაა. პანელს სესია ჰყოფნის. კურიერის ტაბი JWT-ს ინახავს, რომ დისპეტჩერის ქუქი არ წაიშალოს. მაღაზიის საიტი გასაღებით იძახებს, პაროლის გარეშე.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">04 · ბაზა</p>
+    <h2>წესი ცხრილშია, არა მხოლოდ ფორმაში</h2>
+    <div class="grid g2">
+      <div class="card">
+        <h3>ადგილი და ქსელი</h3>
+        <p><code>network_city</code>, <code>network_district</code>, <code>network_warehouse</code>, <code>clients_pickuppoint</code></p>
+      </div>
+      <div class="card">
+        <h3>ფასი</h3>
+        <p><code>network_tariff</code>, <code>network_weightband</code>, <code>network_shoptariff</code>. შედეგი რჩება <code>shipments_shipment</code>-ზე.</p>
+      </div>
+      <div class="card">
+        <h3>მოძრაობა</h3>
+        <p>ამანათი, მოვლენების ისტორია, კურიერის უბანი, ბოლო წერტილი. ისტორია მხოლოდ ემატება, არ იშლება.</p>
+      </div>
+      <div class="card">
+        <h3>ფული და შეტყობინება</h3>
+        <p><code>shipments_codledger</code> — კურიერმა აიღო, მაღაზიას ჯერ არ ჩაბარებია. ფოსტა და SMS რიგში დგას.</p>
+      </div>
+    </div>
+    <p style="margin-top: 14px;"><a href="tables.html">ცხრილების ნახაზი</a></p>
+    <aside class="notes">აქ გადავდივარ tables.html-ზე. ჯერ ქალაქი და უბანი, მერე საწყობი და ფილიალი, მერე ტარიფი. ნარინჯისფერი ველი სხვა ცხრილზე მიუთითებს.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">05 · ბაზა</p>
+    <h2>CHECK და უნიკალურობა</h2>
+    <ol class="steps">
+      <li>ქალაქის საწყობს უბანი არ აქვს. უბნის საწყობს უბანი აუცილებლად აქვს. ეს <code>warehouse_kind_matches_district</code>-ია.</li>
+      <li>ტარიფის ფორმა სახეობას ემთხვევა: სტანდარტულს და სახლამდე მიტანას ადგილი არ აქვს, ქალაქის წყვილს მხოლოდ ქალაქები, უბნის წყვილს მხოლოდ უბნები.</li>
+      <li>კომპანიას ერთი სტანდარტული ფასი აქვს და ერთი სახლამდე დანამატი. ერთი წყვილი ორჯერ არ იწერება.</li>
+      <li>წონის საფეხურზე ზედა ზღვარი ქვედაზე მაღალია. ნაღდის ჩანაწერზე თანხა ნულზე მეტია.</li>
+    </ol>
+    <aside class="notes">ეს წესები PostgreSQL-ის CHECK-ია. ფორმა რომ გვერდი აუაროს, ბაზა მაინც არ ჩაწერს არასწორ რიგს. უნიკალური ინდექსი ნაწილობრივია: მხოლოდ standard რიგებზე, მხოლოდ home რიგებზე, მხოლოდ city წყვილზე.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">06 · ბაზა</p>
+    <h2>ორი ტრიგერი, რადგან CHECK ორ ცხრილს ვერ ადარებს</h2>
+    <div class="grid g2">
+      <div class="card">
+        <h3>warehouse_district_city</h3>
+        <p><code>network_warehouse</code>-ზე, ჩაწერამდე. თუ უბანი შევსებულია, მისი ქალაქი უნდა ემთხვეოდეს საწყობის ქალაქს. სხვა შემთხვევაში PL/pgSQL აგდებს შეცდომას.</p>
+      </div>
+      <div class="card">
+        <h3>warehouse_same_company</h3>
+        <p><code>shipments_shipment</code>-ზე, ჩაწერამდე. გატანის საწყობი უნდა ეკუთვნოდეს იმავე კომპანიას, რაც ამანათს. სხვისი საწყობი ვერ მიებმება.</p>
+      </div>
+    </div>
+    <p class="muted" style="margin-top: 14px;">ორივე არის <code>BEFORE INSERT OR UPDATE</code>. კოდი დგას <code>apps/network/migrations/0002_places_views_and_trigger.py</code> და <code>apps/shipments/migrations/0005_promise_pod_and_ledger.py</code>.</p>
+    <aside class="notes">CHECK ხედავს ერთ რიგს: უბნის ველი ცარიელია თუ არა. იმას, რომ ეს უბანი სწორედ ამ ქალაქისაა, მხოლოდ მეორე ცხრილიდან იგებს. ამისთვისაა ტრიგერი. იგივე ლოგიკაა კომპანიაზე: ამანათის company_id და საწყობის company_id უნდა დაემთხვეს.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">07 · ბაზა</p>
+    <h2>სამი ხედი, სახელებით და არა id-ებით</h2>
+    <pre class="sql">SELECT kind, origin_city, destination_city, origin_district, destination_district, price
+FROM network_tariff_sheet;
+
+SELECT name, kind, city, district
+FROM network_warehouse_sheet;
+
+SELECT tracking_number, shop_name, amount, collected_at
+FROM cod_open_sheet;</pre>
+    <p class="muted">VIEW ინახება ბაზაში. <code>cod_open_sheet</code> მხოლოდ იმ ნაღდს აჩვენებს, რომელიც მაღაზიას ჯერ არ ჩაბარებია — <code>settled_at</code> ცარიელია.</p>
+    <aside class="notes">ახლა VS Code-ის PostgreSQL კავშირში ან psql-ში ამ სამს ვუშვებ. სერვერი უკვე დგას, ცალკე SQL სერვერი არ მჭირდება. ბაზის სახელი .env-ის DATABASE_URL-ში წერია. ხედი იმიტომ, რომ პრეზენტაციაზე ქალაქის სახელი ჩანდეს და არა რიცხვი, და იგივე მოთხოვნა კოდის გარეშეც იმუშავებს.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">08</p>
+    <h2>ფასი ექვს ნაბიჯად ირჩევა</h2>
+    <ol class="steps">
+      <li>უბანი → უბანი, თუ ორივე უბანი ცნობილია და ასეთი წესი არსებობს.</li>
+      <li>თუ არა — ქალაქი → ქალაქი.</li>
+      <li>თუ არც ის არის და მაღაზიას საკუთარი სტანდარტული აქვს — ის.</li>
+      <li>თუ არც ის არის — კომპანიის სტანდარტული.</li>
+      <li>წონის საფეხური ემატება. ქვედა კილოგრამი შედის, ზედა არა.</li>
+      <li>სახლამდე მიტანა ბოლოს ემატება და მხოლოდ კარზე. საწყობიდან გატანას ეს დანამატი არ აქვს.</li>
+    </ol>
+    <p class="muted"><code>shipping_fee</code>, <code>route_fee</code>, <code>weight_fee</code>, <code>home_fee</code>, <code>tariff_basis</code> ამანათზე რჩება.</p>
+    <aside class="notes">კონკრეტული წესი ზოგადზე მარჯვია. ვაკედან საბურთალომდე უბნის ფასია, თუნდაც ქალაქის ფასიც არსებობდეს. თანხა ამანათზე იმიტომ იწერება, რომ ხვალ ტარიფს რომ შევცვლი, გუშინდელ გზავნილს ფასი არ გადაეწეროს. კოდი არის apps/network/quote.py.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">09 · დემო</p>
+    <h2>რა თანმიმდევრობით გავხსნა</h2>
+    <ol class="steps">
+      <li>მთავარი გვერდი — თვალყური ნომრით. სტატუსი და მისამართი ჩანს, ტელეფონი არა.</li>
+      <li><code>/send/</code> — სტუმრის გაგზავნა, ორი პინი რუკაზე.</li>
+      <li>მაღაზია, <code>/dashboard/</code> — ფილიალი, ახალი ამანათი, ფასი შენახვამდე.</li>
+      <li>მენეჯერი, <code>/manage/tariffs/</code> და <code>/manage/warehouses/</code> — წესი და საწყობის სახეობა.</li>
+      <li>სამი SELECT ზემოთ მოცემული ხედებიდან.</li>
+      <li>მეორე ბრაუზერი: <code>/courier/map/</code>. დისპეტჩერი რჩება <code>/manage/map/</code>-ზე, რომ სესია არ გადაიწეროს.</li>
+    </ol>
+    <aside class="notes">დემომდე: Postgres ჩართული, runserver გაშვებული, VS Code ამ საქაღალდეზე, ორი ბრაუზერი. კურიერის ტაბში რუკაზე დაწკაპუნება სატესტო წერტილს აგზავნის. ტელეფონზე „ჩემი ადგილი“ GPS-ს ითხოვს, მაგრამ ჩვეულებრივ HTTP-ზე Chrome ხშირად ბლოკავს.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">10 · კოდი</p>
+    <h2>VS Code-ში ეს ოთხი ფაილი</h2>
+    <div class="grid g2">
+      <div class="card"><h3>apps/network/quote.py</h3><p>ფასის ექვსი ნაბიჯი. იგივე ფუნქციას იყენებს მაღაზიის ფორმა და შენახვა.</p></div>
+      <div class="card"><h3>apps/network/migrations/0002_places_views_and_trigger.py</h3><p>ორი VIEW და ტრიგერი, რომელიც უბანს ქალაქს ადარებს.</p></div>
+      <div class="card"><h3>apps/network/models.py</h3><p>Tariff-ის CHECK და ნაწილობრივი უნიკალური წესები. Warehouse-ის სახეობა.</p></div>
+      <div class="card"><h3>apps/shipments/models.py</h3><p>ამანათზე შენახული ფასი, მოვლენების ისტორია და CodLedger.</p></div>
+    </div>
+    <aside class="notes">კოდს ბოლოს ვხსნი, დემოს მერე. ჯერ quote.py-ში ვაჩვენებ, რომ ფასი ერთ ადგილას ითვლება. მერე მიგრაციაში ტრიგერის ფუნქციას. მოდელში CHECK-ს, რომ წესი Django-შიც ჩანს და ბაზაშიც იქმნება.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">11</p>
+    <h2>რას ვიტყვი, თუ იკითხავენ</h2>
+    <div class="grid g2">
+      <div class="card"><h3>რატომ VIEW?</h3><p>სახელებს აერთებს id-ების მაგივრად. მოთხოვნა ბაზაში რჩება და პრეზენტაციაზე ხელახლა აღარ იწერება.</p></div>
+      <div class="card"><h3>რატომ ტრიგერი?</h3><p>CHECK ერთ რიგს ხედავს. უბანი ამ ქალაქისაა თუ არა, მეორე ცხრილიდან იგება.</p></div>
+      <div class="card"><h3>რატომ იწერება ფასი ამანათზე?</h3><p>ტარიფის მომდევნო ცვლილება ძველ გზავნილს აღარ გადააწერს.</p></div>
+      <div class="card"><h3>რა აკლია?</h3><p>ნატიური Android აპი. JWT API და FCM-ის წერტილი უკვე არის. დემო ბრაუზერის კურიერის რუკით მიდის.</p></div>
+    </div>
+    <aside class="notes">თუ იკითხავენ SQLite-ზე: დაცვა PostgreSQL-ზეა. SQLite მხოლოდ მაშინ ერთვება, როცა DATABASE_URL ცარიელია, და ტრიგერები იქ არ დგება. თუ იკითხავენ ტოკენზე: ბაზაში ნედლი ტოკენი არ ინახება, მხოლოდ ჰეში. მკვდარი ლინკი 404-ს აბრუნებს.</aside>
+  </section>
+
+  <section class="slide">
+    <p class="kicker">მზადება</p>
+    <h2>დაცვამდე, ამ ოთახში</h2>
+    <ol class="steps">
+      <li>PostgreSQL ჩართე და ერთხელ გაუშვი სამი SELECT, რომ ხედები ცარიელი არ იყოს.</li>
+      <li><code>python manage.py runserver</code>. გახსენი მთავარი, მაღაზია, მენეჯერი და კურიერი — პაროლები წინასწარ შეამოწმე.</li>
+      <li>ერთი ამანათი წინასწარ გაიყვანე „გზაშია“ სტატუსამდე, რომ რუკა დემოს წამს ცარიელი არ იყოს.</li>
+      <li>VS Code-ში გახსენი <code>quote.py</code> და ტრიგერის მიგრაცია. ბრაუზერში ეს სლაიდები და <a href="tables.html">tables.html</a>.</li>
+      <li>დისპეტჩერი და კურიერი სხვადასხვა ბრაუზერში იყოს.</li>
+    </ol>
+    <aside class="notes">ეს სლაიდი დარბაზში არ ვაჩვენებ. სახლში რეპეტიცია ამ რიგით გავიარო ერთხელ, ხმამაღლა, საათით. სამიზნე ათი–თორმეტი წუთია, მერე კითხვები.</aside>
+  </section>
+
+  <div class="bar">
+    <span id="pos">1 / 12</span>
+    <span>← → ან სივრცე · N შენიშვნა</span>
+    <span>
+      <button type="button" id="prev">წინა</button>
+      <button type="button" id="next">შემდეგი</button>
+    </span>
+  </div>
+  <script>
+    const slides = Array.from(document.querySelectorAll(".slide"));
+    let i = 0;
+    const pos = document.getElementById("pos");
+    function show(n) {
+      i = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach((s, idx) => s.classList.toggle("active", idx === i));
+      pos.textContent = (i + 1) + " / " + slides.length;
+    }
+    document.getElementById("prev").onclick = () => show(i - 1);
+    document.getElementById("next").onclick = () => show(i + 1);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
+        e.preventDefault();
+        show(i + 1);
+      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+        e.preventDefault();
+        show(i - 1);
+      } else if (e.key === "n" || e.key === "N" || e.key === "თ") {
+        document.body.classList.toggle("show-notes");
+      } else if (e.key === "Home") {
+        show(0);
+      } else if (e.key === "End") {
+        show(slides.length - 1);
+      }
+    });
+  </script>
+</body>
+</html>

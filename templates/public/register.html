@@ -1,0 +1,42 @@
+{% extends "public/base.html" %}
+{% block title %}კლიენტის რეგისტრაცია{% endblock %}
+{% block extra_css %}
+<style>
+  .auth { width: min(520px, calc(100% - 40px)); margin: 40px auto 24px; }
+  .auth h1 { margin: 0 0 8px; font-size: 32px; }
+  .lead { color: var(--muted); margin: 0 0 24px; }
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 24px; }
+  .panel form { display: grid; gap: 12px; }
+  label { font-size: 13px; display: block; margin-bottom: 4px; }
+  input[type="email"], input[type="password"], input[type="text"], select {
+    font: inherit; padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 8px; width: 100%; background: #fff;
+  }
+  .hint { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
+  .errorlist { color: #8a1f2b; font-size: 13px; margin: 4px 0 0; padding: 0; list-style: none; }
+  .form-error { background: #fdecea; border: 1px solid #f5c2c0; color: #8a1f2b; border-radius: 8px; padding: 10px 12px; }
+</style>
+{% endblock %}
+{% block content %}
+  <div class="auth">
+    <h1>კლიენტის რეგისტრაცია</h1>
+    <p class="lead">შეიქმნება კლიენტი და მისი ანგარიში. API-ს გასაღებს კომპანია ჩართავს შემდეგ.</p>
+    <div class="panel">
+      <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="form-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+        {% for field in form %}
+          <div>
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="hint">{{ field.help_text }}</p>{% endif %}
+            {{ field.errors }}
+          </div>
+        {% endfor %}
+        <button class="btn-blue" type="submit">რეგისტრაცია</button>
+      </form>
+      <p style="margin: 16px 0 0;">უკვე გაქვს ანგარიში? <a href="{% url 'gate-login' %}">შესვლა</a></p>
+    </div>
+  </div>
+{% endblock %}

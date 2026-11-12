@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CourierProfile, Device
+from .models import CourierArea, CourierProfile, Device
 
 
 class DeviceInline(admin.TabularInline):
@@ -17,6 +17,12 @@ class CourierProfileAdmin(admin.ModelAdmin):
     autocomplete_fields = ("user", "company")
     readonly_fields = ("last_latitude", "last_longitude", "last_location_at")
     inlines = [DeviceInline]
+
+
+@admin.register(CourierArea)
+class CourierAreaAdmin(admin.ModelAdmin):
+    list_display = ("courier", "district")
+    autocomplete_fields = ("courier", "district")
 
 
 @admin.register(Device)

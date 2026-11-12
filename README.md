@@ -6,14 +6,18 @@ and a browser site for shops, couriers, the company owner, and guests.
 Contact channels are **phone (uBill SMS)** and **email (Gmail)**. Telegram was
 replaced by Gmail and is not in the code.
 
+ქართული განმარტება ამ ფაილის ბოლოშია. არქიტექტურა, ავტორიზაცია და ბაზა: [docs/architecture.md](docs/architecture.md).
+
 ## Scope
 
 **Done**
 
 - Public site: track by number, person-to-person send (`/send/`), role login
+- Client self-registration at `/register/` (a client plus a manager user; API stays off until the company enables it)
+- Company choice on registration and on guest send: a named company, or „სულ ერთია“, which prefers an active company that has a free courier
 - Guest C2C: auto-assign a courier, live map links for sender and recipient
-- Shop dashboard (manual parcels, API keys) and shop HTTP API (`X-API-Key`)
-- Company panel: shops, couriers, assign / cancel / return, live dispatcher map
+- Shop dashboard (manual parcels, branches, API keys) and shop HTTP API (`X-API-Key`)
+- Company panel: shops, couriers, city and district warehouses, tariffs, assign / cancel / return, live dispatcher map
 - Courier map in the browser (`/courier/map/`) over JWT
 - Notifications: Gmail SMTP + uBill SMS to sender and recipient
 - Outbox worker: `process_outbox`
@@ -21,6 +25,8 @@ replaced by Gmail and is not in the code.
 - Live maps over WebSocket, with HTTP polling as fallback
 - Shop COD (cash with the courier); guest `/send/` stays prepaid
 - Guest send, shop form, and shop default pickup require a map pin; shop API may omit coords and fall back to Nominatim
+- Shipping price: district pair, else city pair, else the shop's own standard when one is set, else the company standard, then a weight-band add-on, then home delivery only when the parcel goes to the door. Collecting at a company warehouse skips the home add-on. The amount is copied onto the shipment.
+- Branch hours and a pickup window, courier districts for auto-assign, a COD ledger, a recipient PIN or photo before delivery, a fixed failure-reason list, and a same-day cutoff.
 
 **Still in scope (not finished)**
 
@@ -38,7 +44,8 @@ This is the front door. It joins the pages that already exist:
 
 - a GLS-style header, photo slider, and footer
 - guest tracking by tracking number on the homepage
-- Login in the header, which opens /login/ for shop, courier, or company staff
+- Login in the header, which opens /login/ for a shop, a courier, or a dispatcher
+- Client registration at /register/
 
 Shop staff land on /dashboard/shipments/. Couriers land on /courier/map/. Company members (owner, dispatcher, or viewer) land on /manage/shipments/. A wrong role or a bad password does not sign the user in. The public tracking result shows the status, the address, and the public event history. It does not show the recipient phone or the courier GPS.
 
@@ -48,7 +55,7 @@ A recipient SMS/email link opens http://127.0.0.1:8000/t/<token>/. That page is 
 ## Stack
 
 - Python 3.13, Django 5.2, Django REST Framework
-- SQLite for local development, PostgreSQL in production
+- SQLite for a machine without PostgreSQL. Local development and the defense use PostgreSQL (`DATABASE_URL`).
 - JWT (SimpleJWT) for staff / courier auth, API keys for client integrations
 - Leaflet maps (Esri / CARTO tiles). Forms require a pin; only the shop API geocodes by street name.
 
@@ -64,6 +71,7 @@ apps/
   couriers/        CourierProfile, Device (FCM tokens)
   shipments/       Shipment, ShipmentEvent
   tracking/        CourierLocation, TrackingToken
+  network/         City, District, Warehouse, Tariff, ShopTariff
   integrations/    ApiKey, Webhook, WebhookDelivery
   notifications/   Notification outbox (SMS / Email)
 ```
@@ -117,15 +125,24 @@ Sending the same external_id again returns the existing shipment (HTTP 200) inst
 On `pickup_address` / `delivery_address` you can send `latitude` and `longitude`; those pins skip geocoding. This is the only create path that may omit a pin: Nominatim then looks up the street, and a miss leaves coordinates empty.
 Interactive docs: http://127.0.0.1:8000/api/docs/
 
+A new client registers at http://127.0.0.1:8000/register/, picks a courier company (or leaves „სულ ერთია“), and lands in the shop cabinet. API access stays off until that company sets `api_enabled`.
+
 Shops without an integration sign in at http://127.0.0.1:8000/dashboard/login/ and add parcels by hand.
 The dashboard account needs a ClientMembership; API access also requires Client.api_enabled.
 From a shipment page the shop can cancel (before pickup), print a label, and copy a recipient tracking link.
+Branches live at http://127.0.0.1:8000/dashboard/branches/. Each branch has a district. A new parcel picked from that branch is priced from the district, then the city, then the standard tariff. Home delivery is an add-on. The price is stored on the shipment.
 
-## Manager panel
+## Dispatcher panel
 
-Courier-company staff can also sign in at http://127.0.0.1:8000/manage/login/.
+The cabinet header says **დისპეჩერი**. Owners and dispatchers sign in at http://127.0.0.1:8000/manage/login/.
 They need a CompanyMembership. Owners and dispatchers register shops (optional default pickup point — with a required map pin) and couriers, assign parcels, cancel, or return to sender. On a shipment they can drop a map pin when a shop API address was not geocoded.
 Viewers can look, but cannot change anything. "მიმღების ლინკი" mints a /t/<token>/ URL without sending SMS.
+
+Warehouses are http://127.0.0.1:8000/manage/warehouses/. A city warehouse has no district. A district warehouse must sit in a district of that same city; on PostgreSQL a trigger rejects a mismatch. Cities and districts are http://127.0.0.1:8000/manage/places/. `python manage.py seed_places` loads the main Georgian cities (the first migrate does this too).
+
+Tariffs are http://127.0.0.1:8000/manage/tariffs/. One standard price and one home-delivery add-on per company. City pairs and district pairs are separate rows. The page can calculate a sample route. Two SQL views, `network_tariff_sheet` and `network_warehouse_sheet`, join those tables for the defense.
+
+Presentation pages, opened in a browser: `presentation/tables.html` (table drawings), `presentation/schema.html` (tables, keys, and join arrows), `presentation/slides.html` (talk outline).
 
 The live map is http://127.0.0.1:8000/manage/map/. It opens a WebSocket at /ws/manage/live/ and moves the pin when a GPS point arrives. If the socket drops, it falls back to polling /manage/live/. Open it in a separate browser from the courier tabs so the session cookie is not overwritten.
 
@@ -164,4 +181,41 @@ Courier endpoints:
 - POST /api/v1/courier/locations/ with a `points` array
 - POST /api/v1/courier/devices/ with the FCM token
 
-A courier can pick up, mark in transit / out for delivery, deliver, or mark failed. Cancel and return stay on the manager panel. GPS points noisier than 200 m, or dated in the future, are dropped. Interactive docs: http://127.0.0.1:8000/api/docs/
+A courier can pick up, mark in transit / out for delivery, deliver, or mark failed. Cancel and return stay on the dispatcher panel. GPS points noisier than 200 m, or dated in the future, are dropped. Interactive docs: http://127.0.0.1:8000/api/docs/
+
+## ქართული განმარტება
+
+Galaxy Express არის საკურიერო პლატფორმა. ერთი Django პროექტი ემსახურება საჯარო საიტს, მაღაზიის კაბინეტს, დისპეჩერის პანელს და კურიერის რუკას. მაღაზიის პროგრამა იმავე სერვერს ეძახის HTTP API-ით. ანდროიდის აპისთვის JWT ბოლოები უკვე არის; თავად აპი ჯერ არ არის აწყობილი.
+
+სამი როლი სამი ჰედერით შედის:
+
+- **მაღაზია** — `/dashboard/`. ამანათები, ფილიალები, API გასაღები. სესია ინახება ქუქიში.
+- **დისპეჩერი** — `/manage/`. მაღაზიები, კურიერები, საწყობები, ტარიფები, ნაღდი ანგარიშსწორება და ცოცხალი რუკა. მფლობელიც და დისპეჩერიც აქ შედის. მაყურებელი მხოლოდ ხედავს.
+- **კურიერი** — `/courier/map/`. თითო ჩანართი თავის JWT-ს ინახავს, ამიტომ დისპეჩერის სესიას არ შლის.
+
+ფიზიკური პირი ანგარიშის გარეშე აგზავნის ამანათს `/send/`-დან. კლიენტი თავად რეგისტრირდება `/register/`-ზე: იქმნება კლიენტი და მისი მენეჯერი მომხმარებელი. API გამორთულია, სანამ კომპანია `api_enabled`-ს არ ჩართავს.
+
+ორივე ფორმაზე არის საკურიერო კომპანიის არჩევანი. კონკრეტული კომპანიის არჩევისას კლიენტი ან ამანათი იმ კომპანიას ეკუთვნის. **სულ ერთია** ნიშნავს, რომ სისტემა ირჩევს აქტიურ კომპანიას, რომელსაც ახლა თავისუფალი კურიერი ჰყავს. თუ ასეთი არ არის, ირჩევა უძველესი აქტიური კომპანია. სტუმრის ამანათი მიდის იმ კომპანიის კლიენტზე „ფიზიკური პირები“ (კოდი `WALKIN`).
+
+ფასი იკითხება ასე: ჯერ უბნების წყვილი, მერე ქალაქების წყვილი, მერე მაღაზიის სტანდარტული ტარიფი თუ გაწერილია, ბოლოს კომპანიის სტანდარტული. წონის დიაპაზონი ემატება ზემოდან. სახლამდე მიტანის გადასახადი ემატება მხოლოდ მაშინ, როცა ამანათი კარზე მიდის. საწყობიდან გატანაზე ეს დანამატი არ ერიცხება. გამოთვლილი თანხა ამანათზე ინახება.
+
+ბაზა ლოკალურად PostgreSQL-ია. კავშირი `.env`-ის `DATABASE_URL`-ში წერია და `config/settings/dev.py` კითხულობს. თუ ეს ცვლადი ცარიელია, დეველოპმენტი SQLite-ზე ეშვება. პაროლი ბაზაში აღდგენადი სახით არ დევს: Django ინახავს PBKDF2 ჰეშს. ტრეკინგის ბმულის ნედლი ტოკენიც არ ინახება, მხოლოდ SHA-256 ჰეში.
+
+შეტყობინება ჯერ რიგში (`outbox`) ჯდება. გასაგზავნად: `python manage.py process_outbox`. ელფოსტა მიდის Gmail SMTP-ით, SMS — uBill-ით. გასაღებების გარეშე ტექსტი კონსოლში იბეჭდება.
+
+გაშვება:
+
+```powershell
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+copy .env.example .env
+python manage.py migrate
+python manage.py runserver
+```
+
+მთავარი გვერდი: http://127.0.0.1:8000/ . ადმინი: http://127.0.0.1:8000/admin/ . API-ს დოკუმენტაცია: http://127.0.0.1:8000/api/docs/ .
+
+პრეზენტაციის სურათები ბრაუზერში იხსნება: `presentation/tables.html`, `presentation/schema.html`, `presentation/slides.html`.
+
+ტექნიკური სქემა — მოთხოვნა როგორ მიდის მისამართიდან ხედამდე, სერვისამდე და PostgreSQL-მდე — წერია [docs/architecture.md](docs/architecture.md)-ში, ინგლისურად და ქართულად.

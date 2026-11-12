@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8">
+  <title>Galaxy Express — ცხრილები</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 16px/1.45 "Segoe UI", sans-serif; color: #1c1e21; background: #f4f6f5; }
+    main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { font-size: 28px; margin: 0 0 6px; }
+    h2 { font-size: 18px; margin: 28px 0 12px; }
+    p { margin: 0 0 12px; }
+    .muted { color: #5c6560; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+    table.card { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d5dbd8; }
+    table.card caption { text-align: left; font-weight: 700; padding: 10px 12px; background: #143d32; color: #fff; }
+    table.card th, table.card td { text-align: left; padding: 6px 12px; border-top: 1px solid #e6ebe8; font-size: 14px; }
+    table.card th { width: 46%; color: #3d4a44; font-weight: 600; }
+    .pk { color: #0f6b4c; }
+    .fk { color: #8a4b08; }
+    .formula { background: #fff; border: 1px solid #d5dbd8; padding: 16px 18px; }
+    .formula ol { margin: 8px 0 0; padding-left: 20px; }
+    code { font-family: Consolas, monospace; font-size: 13px; }
+    .sql { background: #143d32; color: #e7f5ee; padding: 14px 16px; overflow: auto; }
+    .links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .links span { background: #fff; border: 1px solid #d5dbd8; padding: 6px 10px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Galaxy Express — ბაზის ცხრილები</h1>
+    <p class="muted">საკურიერო კომპანიის ქსელი და ტარიფი. ნარინჯისფერი ველი სხვა ცხრილზე მიუთითებს. სალაპარაკო სვლა: <a href="slides.html">slides.html</a></p>
+
+    <h2>ადგილი</h2>
+    <div class="grid">
+      <table class="card">
+        <caption>network_city</caption>
+        <tr><th class="pk">id</th><td>მთავარი გასაღები</td></tr>
+        <tr><th>name</th><td>უნიკალური, მაგ. თბილისი</td></tr>
+      </table>
+      <table class="card">
+        <caption>network_district</caption>
+        <tr><th class="pk">id</th><td>მთავარი გასაღები</td></tr>
+        <tr><th class="fk">city_id</th><td>→ network_city</td></tr>
+        <tr><th>name</th><td>უნიკალური ქალაქის შიგნით, მაგ. ვაკე</td></tr>
+      </table>
+    </div>
+    <p class="links"><span>ქალაქს აქვს ბევრი უბანი</span><span>უბანი ერთ ქალაქს ეკუთვნის</span></p>
+
+    <h2>საწყობი და მაღაზიის ფილიალი</h2>
+    <div class="grid">
+      <table class="card">
+        <caption>network_warehouse — კომპანიის საწყობი</caption>
+        <tr><th class="pk">id</th><td>მთავარი გასაღები</td></tr>
+        <tr><th class="fk">company_id</th><td>→ companies_couriercompany</td></tr>
+        <tr><th>name</th><td>უნიკალური კომპანიის შიგნით</td></tr>
+        <tr><th>kind</th><td>city ან district</td></tr>
+        <tr><th class="fk">city_id</th><td>→ network_city</td></tr>
+        <tr><th class="fk">district_id</th><td>→ network_district, ცარიელი თუ ქალაქის საწყობია</td></tr>
+        <tr><th class="fk">address_id</th><td>→ core_address</td></tr>
+        <tr><th>is_active</th><td>ჩართულია თუ არა</td></tr>
+      </table>
+      <table class="card">
+        <caption>clients_pickuppoint — მაღაზიის ფილიალი</caption>
+        <tr><th class="pk">id</th><td>მთავარი გასაღები</td></tr>
+        <tr><th class="fk">client_id</th><td>→ clients_client</td></tr>
+        <tr><th>name</th><td>ფილიალის სახელი</td></tr>
+        <tr><th class="fk">district_id</th><td>→ network_district, აქედან ითვლება ტარიფი</td></tr>
+        <tr><th class="fk">address_id</th><td>→ core_address</td></tr>
+        <tr><th>is_default</th><td>მაღაზიას ერთი ძირითადი ფილიალი</td></tr>
+      </table>
+    </div>
+    <p class="muted">შეზღუდვა: kind = city მაშინ district_id ცარიელია, kind = district მაშინ უბანი აუცილებელია. PostgreSQL-ის ტრიგერი ამოწმებს, რომ უბანი სწორედ იმ ქალაქს ეკუთვნის.</p>
+
+    <h2>ტარიფი</h2>
+    <table class="card">
+      <caption>network_tariff — ერთი ფასის წესი</caption>
+      <tr><th class="pk">id</th><td>მთავარი გასაღები</td></tr>
+      <tr><th class="fk">company_id</th><td>→ companies_couriercompany</td></tr>
+      <tr><th>kind</th><td>standard, home, city ან district</td></tr>
+      <tr><th class="fk">origin_city_id / destination_city_id</th><td>ივსება მხოლოდ kind = city</td></tr>
+      <tr><th class="fk">origin_district_id / destination_district_id</th><td>ივსება მხოლოდ kind = district</td></tr>
+      <tr><th>price</th><td>ლარი, 0 ან მეტი</td></tr>
+    </table>
+    <p class="muted">კომპანიას ერთი სტანდარტული ფასი აქვს და ერთი სახლამდე მიტანის დანამატი. ქალაქის წყვილი და უბნის წყვილი არ მეორდება.</p>
+
+    <h2>როგორ ითვლება სტანდარტული ტარიფი</h2>
+    <div class="formula">
+      <ol>
+        <li>თუ ორივე უბანი ცნობილია და არსებობს უბანი → უბანი, ეს ფასი იღება.</li>
+        <li>თუ არა და არსებობს ქალაქი → ქალაქი, ეს ფასი იღება.</li>
+        <li>თუ არც ერთი არ არის და მაღაზიას საკუთარი სტანდარტული აქვს, იღება ის.</li>
+        <li>თუ არც ის არის, იღება კომპანიის სტანდარტული ფასი.</li>
+        <li>წონის საფეხური ემატება მარშრუტს. ქვედა კილოგრამი შედის, ზედა არა.</li>
+        <li>სახლამდე მიტანა ემატება ბოლოს, მხოლოდ კარზე მიტანისას. საწყობიდან გატანას ეს დანამატი არ ემატება.</li>
+      </ol>
+      <p style="margin-top: 12px;">შედეგი იწერება ამანათზე (<code>shipments_shipment.shipping_fee</code>, <code>route_fee</code>, <code>home_fee</code>, <code>tariff_basis</code>), რომ ტარიფის შემდეგი ცვლილება ძველ ამანათს აღარ გადააწეროს.</p>
+    </div>
+
+    <h2>მაგალითი</h2>
+    <div class="grid">
+      <table class="card">
+        <caption>წესები</caption>
+        <tr><th>სტანდარტული</th><td>5 ₾</td></tr>
+        <tr><th>თბილისი → ბათუმი</th><td>15 ₾</td></tr>
+        <tr><th>ვაკე → საბურთალო</th><td>4 ₾</td></tr>
+        <tr><th>სახლამდე</th><td>+3 ₾</td></tr>
+      </table>
+      <table class="card">
+        <caption>დათვლა</caption>
+        <tr><th>ვაკე → საბურთალო, კარამდე</th><td>4 + 3 = 7 ₾</td></tr>
+        <tr><th>ვაკე → ბათუმის აეროპორტი</th><td>15 ₾, უბნის წესი არ არის</td></tr>
+        <tr><th>უბნის გარეშე</th><td>5 ₾</td></tr>
+      </table>
+    </div>
+
+    <h2>წონა, მაღაზიის ტარიფი, ნაღდი</h2>
+    <div class="grid">
+      <table class="card">
+        <caption>network_weightband</caption>
+        <tr><th class="fk">company_id</th><td>→ companies_couriercompany</td></tr>
+        <tr><th>min_kg / max_kg</th><td>ქვედა შედის, ზედა არა. ცარიელი ზედა ნიშნავს „და ზემოთ“</td></tr>
+        <tr><th>surcharge</th><td>დანამატი ლარში, 0 ან მეტი</td></tr>
+      </table>
+      <table class="card">
+        <caption>network_shoptariff</caption>
+        <tr><th class="fk">client_id</th><td>→ clients_client, ერთი მაღაზია ერთხელ</td></tr>
+        <tr><th>standard_price</th><td>მაღაზიის სტანდარტული. უბანი და ქალაქი მაინც უფრო კონკრეტულია</td></tr>
+      </table>
+      <table class="card">
+        <caption>shipments_codledger</caption>
+        <tr><th class="fk">shipment_id</th><td>→ shipments_shipment, ერთი ჩანაწერი</td></tr>
+        <tr><th>amount</th><td>0-ზე მეტი. კურიერმა აიღო</td></tr>
+        <tr><th>settled_at</th><td>ცარიელი სანამ მაღაზიას არ ჩაბარდება</td></tr>
+      </table>
+    </div>
+
+    <h2>ტრიგერი</h2>
+    <div class="formula">
+      <p><code>warehouse_district_city</code> — საწყობის ჩაწერამდე. უბნის ქალაქი უნდა ემთხვეოდეს საწყობის ქალაქს.</p>
+      <p><code>warehouse_same_company</code> — ამანათის ჩაწერამდე. გატანის საწყობი იმავე კომპანიისა უნდა იყოს.</p>
+      <p class="muted" style="margin: 0;">CHECK ერთ რიგს ხედავს. ტრიგერი მეორე ცხრილს ადარებს. ორივე PL/pgSQL-ია და მხოლოდ PostgreSQL-ზე დგება.</p>
+    </div>
+
+    <h2>პრეზენტაციაზე საჩვენებელი SQL</h2>
+    <pre class="sql">SELECT kind, origin_city, destination_city, origin_district, destination_district, price
+FROM network_tariff_sheet;
+
+SELECT name, kind, city, district
+FROM network_warehouse_sheet;
+
+SELECT tracking_number, shop_name, amount, collected_at
+FROM cod_open_sheet;</pre>
+    <p class="muted">სამივე VIEW-ია. პირველი ორი სახელს უკავშირებს id-ს. მესამე მხოლოდ ღია ნაღდს აჩვენებს. ცხრილები PostgreSQL-შია.</p>
+  </main>
+</body>
+</html>

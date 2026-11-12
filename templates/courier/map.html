@@ -239,12 +239,16 @@
   async function changeStatus(id, status) {
     const payload = {status: status};
     if (status === "failed") {
-      const reason = window.prompt("რატომ ვერ ჩაბარდა?");
+      const reason = window.prompt("მიზეზი: absent, refused, wrong_address, no_access, damaged");
       if (!reason) return;
-      payload.failure_reason = reason;
+      payload.failure_code = reason.trim();
     }
     if (status === "delivered") {
       payload.received_by = window.prompt("ვინ მიიღო? (შეგიძლია ცარიელი დატოვო)") || "";
+      const item = shipments.find(function (row) { return row.id === id; });
+      if (item && item.pod_required) {
+        payload.pod_pin = window.prompt("მიმღების PIN") || "";
+      }
     }
     try {
       await api("/shipments/" + id + "/transition/", {method: "POST", body: JSON.stringify(payload)});

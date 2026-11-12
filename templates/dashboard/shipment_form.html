@@ -10,6 +10,7 @@
     {% if form.non_field_errors %}<ul class="errorlist">{{ form.non_field_errors }}</ul>{% endif %}
     <div class="row">
       <div class="field">{{ form.external_id.label_tag }}{{ form.external_id }}{{ form.external_id.errors }}</div>
+      <div class="field">{{ form.service_level.label_tag }}{{ form.service_level }}{{ form.service_level.errors }}</div>
       <div class="field">{{ form.scheduled_delivery_date.label_tag }}{{ form.scheduled_delivery_date }}{{ form.scheduled_delivery_date.errors }}</div>
     </div>
     <h2 style="font-size: 16px;">მიმღები</h2>
@@ -23,6 +24,8 @@
       <div class="field">{{ form.pickup_point.label_tag }}{{ form.pickup_point }}{{ form.pickup_point.errors }}</div>
       <div class="field">{{ form.pickup_city.label_tag }}{{ form.pickup_city }}{{ form.pickup_city.errors }}</div>
       <div class="field">{{ form.pickup_line1.label_tag }}{{ form.pickup_line1 }}{{ form.pickup_line1.errors }}</div>
+      <div class="field">{{ form.pickup_window_start.label_tag }}{{ form.pickup_window_start }}{{ form.pickup_window_start.errors }}</div>
+      <div class="field">{{ form.pickup_window_end.label_tag }}{{ form.pickup_window_end }}{{ form.pickup_window_end.errors }}</div>
     </div>
     {{ form.pickup_lat }}{{ form.pickup_lng }}
     <div class="picker">
@@ -42,6 +45,18 @@
       <div id="delivery-map" class="pick-map"></div>
     </div>
     <div class="field" style="margin-bottom: 12px;">{{ form.delivery_notes.label_tag }}{{ form.delivery_notes }}{{ form.delivery_notes.errors }}</div>
+    <h2 style="font-size: 16px;">ტარიფი</h2>
+    <p class="muted" style="margin-top: 0;">ჯერ უბანი, მერე ქალაქი, მერე მაღაზიის ფასი თუ გაწერილია, ბოლოს კომპანიის სტანდარტული. სახლამდე მიტანა ემატება მხოლოდ მაშინ, როცა ამანათი კარზე მიდის და არა საწყობში.</p>
+    <div class="row">
+      <div class="field">{{ form.origin_district.label_tag }}{{ form.origin_district }}{{ form.origin_district.errors }}</div>
+      <div class="field">{{ form.destination_district.label_tag }}{{ form.destination_district }}{{ form.destination_district.errors }}</div>
+      <div class="field">{{ form.destination_warehouse.label_tag }}{{ form.destination_warehouse }}{{ form.destination_warehouse.errors }}</div>
+    </div>
+    <div class="field" style="margin-bottom: 12px;">
+      <label>{{ form.home_delivery }} {{ form.home_delivery.label }}</label>
+    </div>
+    <p id="quote-box" class="card" style="background: #f7faf8; margin-bottom: 16px;">ტარიფი გამოჩნდება არჩევის შემდეგ.</p>
+    {{ branches|json_script:"branch-data" }}
     <h2 style="font-size: 16px;">ამანათი</h2>
     <div class="row">
       <div class="field">{{ form.description.label_tag }}{{ form.description }}{{ form.description.errors }}</div>
@@ -77,6 +92,46 @@
     sync();
     bindLocationPicker("pickup-map", document.getElementById("id_pickup_lat"), document.getElementById("id_pickup_lng"));
     bindLocationPicker("delivery-map", document.getElementById("id_delivery_lat"), document.getElementById("id_delivery_lng"));
+
+    const branches = JSON.parse(document.getElementById("branch-data").textContent);
+    const quoteBox = document.getElementById("quote-box");
+    const pointSel = document.getElementById("id_pickup_point");
+    const originSel = document.getElementById("id_origin_district");
+    const destSel = document.getElementById("id_destination_district");
+    const homeBox = document.getElementById("id_home_delivery");
+    const warehouseSel = document.getElementById("id_destination_warehouse");
+    function refreshQuote() {
+      const atWarehouse = warehouseSel && warehouseSel.value;
+      const params = new URLSearchParams({
+        pickup_point: pointSel.value,
+        origin: originSel.value,
+        destination: destSel.value,
+        home: homeBox.checked && !atWarehouse ? "1" : "0",
+        weight: document.getElementById("id_weight_kg").value,
+      });
+      fetch("{% url 'dashboard:quote' %}?" + params.toString())
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          if (!data.ok) {
+            quoteBox.textContent = data.detail;
+            return;
+          }
+          quoteBox.textContent = data.amount + " ₾ · " + data.basis
+            + (data.weight_fee && data.weight_fee !== "0.00" ? " + წონა " + data.weight_fee + " ₾" : "")
+            + (data.home_fee !== "0.00" ? " + სახლამდე " + data.home_fee + " ₾" : "");
+        })
+        .catch(function () { quoteBox.textContent = "ტარიფი ვერ დაითვალა."; });
+    }
+    const weightInput = document.getElementById("id_weight_kg");
+    [pointSel, originSel, destSel, homeBox, warehouseSel, weightInput].forEach(function (el) {
+      el.addEventListener("change", refreshQuote);
+    });
+    weightInput.addEventListener("input", refreshQuote);
+    pointSel.addEventListener("change", function () {
+      const match = branches.find(function (row) { return String(row.id) === pointSel.value; });
+      if (match && match.district_id) originSel.value = String(match.district_id);
+    });
+    refreshQuote();
   })();
   </script>
 {% endblock %}

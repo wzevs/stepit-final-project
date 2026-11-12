@@ -1,0 +1,24 @@
+{% extends "manage/base.html" %}
+{% block title %}უბნები{% endblock %}
+{% block content %}
+  <p><a href="{% url 'manage:courier-list' %}">კურიერები</a></p>
+  <h1>{{ courier.user.get_full_name|default:courier.user.email }}</h1>
+  <p class="muted">მონიშნული უბანი ნიშნავს, რომ ავტომატური მიბმა ამ კურიერს ამ უბნიდან ამანათზე სხვებზე ადრე ნახავს. უბნის გარეშე კურიერი ნებისმიერ ამანათს იღებს, თუ სპეციალისტი არ მოიძებნა.</p>
+  <form method="post" class="card">
+    {% csrf_token %}
+    {% for city in cities %}
+      <h2 style="font-size: 16px;">{{ city.name }}</h2>
+      <div class="row">
+        {% for district in city.districts.all %}
+          <label class="field" style="flex: 0 1 180px;">
+            <input type="checkbox" name="districts" value="{{ district.pk }}" {% if district.pk in selected %}checked{% endif %}>
+            {{ district.name }}
+          </label>
+        {% empty %}
+          <p class="muted">უბანი არ არის.</p>
+        {% endfor %}
+      </div>
+    {% endfor %}
+    {% if can_manage %}<button type="submit">შენახვა</button>{% endif %}
+  </form>
+{% endblock %}

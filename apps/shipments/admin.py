@@ -3,7 +3,7 @@ from django.contrib import admin, messages
 
 from apps.couriers.models import CourierProfile
 
-from .models import Shipment, ShipmentEvent
+from .models import CodLedger, Shipment, ShipmentEvent
 from .services import (
     InvalidTransition,
     ShipmentError,
@@ -146,7 +146,17 @@ class ShipmentAdmin(admin.ModelAdmin):
         ),
         (
             "Proof of delivery",
-            {"fields": ("proof_photo", "proof_signature", "received_by", "failure_reason")},
+            {
+                "fields": (
+                    "proof_photo",
+                    "proof_signature",
+                    "recipient_pin",
+                    "pod_method",
+                    "received_by",
+                    "failure_code",
+                    "failure_reason",
+                )
+            },
         ),
         ("Meta", {"classes": ("collapse",), "fields": ("metadata", "created_at", "updated_at")}),
     )
@@ -191,6 +201,7 @@ class ShipmentAdmin(admin.ModelAdmin):
                     actor=request.user,
                     note=form.cleaned_data.get("transition_note", ""),
                     failure_reason=obj.failure_reason,
+                    failure_code=obj.failure_code,
                     received_by=obj.received_by,
                 )
         except (InvalidTransition, ShipmentError) as exc:
@@ -248,3 +259,11 @@ class ShipmentEventAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(CodLedger)
+class CodLedgerAdmin(admin.ModelAdmin):
+    list_display = ("shipment", "client", "courier", "amount", "collected_at", "settled_at")
+    list_filter = ("company",)
+    search_fields = ("shipment__tracking_number", "client__name")
+    autocomplete_fields = ("shipment", "company", "client", "courier")

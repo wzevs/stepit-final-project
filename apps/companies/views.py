@@ -5,14 +5,16 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
 from apps.clients.models import Client
 from apps.core.geo import set_pin
-from apps.couriers.models import CourierProfile
-from apps.shipments.labels import PAYMENT_KA, STATUS_KA
-from apps.shipments.models import Shipment
+from apps.couriers.models import CourierArea, CourierProfile
+from apps.network.models import City, District
+from apps.shipments.labels import PAYMENT_KA, SERVICE_KA, STATUS_KA
+from apps.shipments.models import CodLedger, Shipment
 from apps.shipments.services import (
     REASSIGNABLE,
     InvalidTransition,
@@ -63,6 +65,7 @@ class CompanyMixin(LoginRequiredMixin):
             "can_manage": self.can_manage,
             "status_ka": STATUS_KA,
             "payment_ka": PAYMENT_KA,
+            "service_ka": SERVICE_KA,
         }
 
     def forbid_viewer(self, request):
@@ -189,7 +192,14 @@ class ShipmentDetailView(CompanyMixin, View):
 
     def _shipment(self, pk):
         return get_object_or_404(
-            Shipment.objects.select_related("client", "courier__user", "pickup_address", "delivery_address"),
+            Shipment.objects.select_related(
+                "client",
+                "courier__user",
+                "pickup_address",
+                "delivery_address",
+                "destination_warehouse",
+                "cod_ledger",
+            ),
             pk=pk,
             company=self.company,
         )
@@ -277,6 +287,7 @@ class CourierListView(CompanyMixin, ListView):
         return (
             CourierProfile.objects.filter(company=self.company)
             .select_related("user")
+            .prefetch_related("areas")
             .order_by("user__first_name", "user__email")
         )
 
@@ -301,3 +312,68 @@ class CourierCreateView(CompanyMixin, View):
             profile = form.save(self.company)
         messages.success(request, f"კურიერი დაემატა: {profile.user.get_full_name() or profile.user.email}")
         return redirect("manage:courier-list")
+
+
+class CourierAreaView(CompanyMixin, View):
+    template_name = "manage/courier_areas.html"
+
+    def get(self, request, pk):
+        courier = self._courier(pk)
+        return render(request, self.template_name, self._context(courier))
+
+    def post(self, request, pk):
+        denied = self.forbid_viewer(request)
+        if denied:
+            return denied
+        courier = self._courier(pk)
+        chosen = request.POST.getlist("districts")
+        district_ids = list(District.objects.filter(pk__in=chosen).values_list("pk", flat=True))
+        with transaction.atomic():
+            courier.areas.all().delete()
+            CourierArea.objects.bulk_create(
+                [CourierArea(courier=courier, district_id=district_id) for district_id in district_ids]
+            )
+        messages.success(request, "კურიერის უბნები შენახულია.")
+        return redirect("manage:courier-areas", pk=courier.pk)
+
+    def _courier(self, pk):
+        return get_object_or_404(
+            CourierProfile.objects.select_related("user"), pk=pk, company=self.company
+        )
+
+    def _context(self, courier):
+        selected = set(courier.areas.values_list("district_id", flat=True))
+        return {
+            **self._base_context(),
+            "courier": courier,
+            "cities": City.objects.prefetch_related("districts").order_by("name"),
+            "selected": selected,
+        }
+
+
+class CodLedgerView(CompanyMixin, View):
+    template_name = "manage/cod_ledger.html"
+
+    def get(self, request):
+        return render(request, self.template_name, self._context())
+
+    def post(self, request):
+        denied = self.forbid_viewer(request)
+        if denied:
+            return denied
+        row = get_object_or_404(
+            CodLedger, pk=request.POST.get("ledger_id"), company=self.company, settled_at__isnull=True
+        )
+        row.settled_at = timezone.now()
+        row.settled_by = request.user
+        row.save(update_fields=["settled_at", "settled_by", "updated_at"])
+        messages.success(request, "თანხა მაღაზიას ჩაბარდა.")
+        return redirect("manage:cod-ledger")
+
+    def _context(self):
+        rows = (
+            CodLedger.objects.filter(company=self.company)
+            .select_related("shipment", "client", "courier__user")
+            .order_by("settled_at", "-collected_at")
+        )
+        return {**self._base_context(), "rows": rows}

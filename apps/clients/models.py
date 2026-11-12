@@ -31,12 +31,21 @@ class Client(UUIDModel, TimeStampedModel):
 
 
 class PickupPoint(TimeStampedModel):
-    """A client's branch/warehouse where couriers pick parcels up."""
+    """A shop branch. Couriers collect parcels here, and its district prices the route."""
 
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="pickup_points")
     name = models.CharField(max_length=150)
+    district = models.ForeignKey(
+        "network.District",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="pickup_points",
+    )
     address = models.ForeignKey(Address, on_delete=models.PROTECT, related_name="+")
     contact_phone = models.CharField(max_length=20, blank=True)
+    opens_at = models.TimeField(null=True, blank=True)
+    closes_at = models.TimeField(null=True, blank=True)
     is_default = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
@@ -46,7 +55,16 @@ class PickupPoint(TimeStampedModel):
                 fields=["client"],
                 condition=models.Q(is_default=True),
                 name="uniq_default_pickup_per_client",
-            )
+            ),
+            models.CheckConstraint(
+                condition=models.Q(opens_at__isnull=True, closes_at__isnull=True)
+                | models.Q(
+                    opens_at__isnull=False,
+                    closes_at__isnull=False,
+                    opens_at__lt=models.F("closes_at"),
+                ),
+                name="pickup_hours_complete",
+            ),
         ]
 
     def __str__(self) -> str:

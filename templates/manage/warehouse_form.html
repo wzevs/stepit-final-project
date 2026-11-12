@@ -1,0 +1,62 @@
+{% extends "manage/base.html" %}
+{% block title %}საწყობი{% endblock %}
+{% block extra_head %}
+  {% include "includes/leaflet_base.html" %}
+{% endblock %}
+{% block content %}
+  <h1>{% if warehouse %}საწყობის შეცვლა{% else %}ახალი საწყობი{% endif %}</h1>
+  <form method="post" class="card">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<ul class="errorlist">{{ form.non_field_errors }}</ul>{% endif %}
+    <div class="row">
+      <div class="field">{{ form.name.label_tag }}{{ form.name }}{{ form.name.errors }}</div>
+      <div class="field">{{ form.kind.label_tag }}{{ form.kind }}{{ form.kind.errors }}</div>
+    </div>
+    <div class="row">
+      <div class="field">{{ form.city.label_tag }}{{ form.city }}{{ form.city.errors }}</div>
+      <div class="field" id="district-wrap">{{ form.district.label_tag }}{{ form.district }}{{ form.district.errors }}</div>
+    </div>
+    <div class="field" style="margin-bottom: 12px;">{{ form.line1.label_tag }}{{ form.line1 }}{{ form.line1.errors }}</div>
+    {{ form.latitude }}{{ form.longitude }}
+    <div class="picker">
+      <p class="muted">ქალაქის საწყობს უბანი არ აქვს. უბნის საწყობი მხოლოდ იმ ქალაქის უბანს იღებს. პინი სავალდებულოა.</p>
+      <div id="warehouse-map" class="pick-map"></div>
+    </div>
+    <div class="field" style="margin-bottom: 16px;">
+      <label>{{ form.is_active }} {{ form.is_active.label }}</label>
+    </div>
+    <button type="submit">შენახვა</button>
+    <a href="{% url 'manage:warehouse-list' %}" style="margin-left: 12px;">გაუქმება</a>
+  </form>
+  {{ districts|json_script:"district-data" }}
+  <script>
+    bindLocationPicker("warehouse-map", document.getElementById("id_latitude"), document.getElementById("id_longitude"));
+    const rows = JSON.parse(document.getElementById("district-data").textContent);
+    const kindSel = document.getElementById("id_kind");
+    const citySel = document.getElementById("id_city");
+    const districtSel = document.getElementById("id_district");
+    const wrap = document.getElementById("district-wrap");
+    function refill() {
+      const cityId = citySel.value;
+      const keep = districtSel.value;
+      const cityKind = kindSel.value === "city";
+      wrap.style.display = cityKind ? "none" : "";
+      districtSel.innerHTML = "";
+      const blank = document.createElement("option");
+      blank.value = "";
+      blank.textContent = "— უბანი არ სჭირდება —";
+      districtSel.appendChild(blank);
+      rows.forEach(function (row) {
+        if (String(row.city_id) !== cityId) return;
+        const option = document.createElement("option");
+        option.value = String(row.id);
+        option.textContent = row.label;
+        if (String(row.id) === keep) option.selected = true;
+        districtSel.appendChild(option);
+      });
+    }
+    kindSel.addEventListener("change", refill);
+    citySel.addEventListener("change", refill);
+    refill();
+  </script>
+{% endblock %}

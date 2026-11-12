@@ -1,0 +1,32 @@
+{% extends "manage/base.html" %}
+{% block title %}საწყობები{% endblock %}
+{% block content %}
+  <div class="row" style="justify-content: space-between;">
+    <h1>საწყობები</h1>
+    <span>
+      <a href="{% url 'manage:place-list' %}">ქალაქები და უბნები</a>
+      {% if can_manage %} · <a class="button" href="{% url 'manage:warehouse-create' %}">ახალი საწყობი</a>{% endif %}
+    </span>
+  </div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>სახელი</th><th>ტიპი</th><th>ქალაქი</th><th>უბანი</th><th>მისამართი</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for row in warehouses %}
+          <tr>
+            <td>{{ row.name }}{% if not row.is_active %} <span class="badge">გამორთული</span>{% endif %}</td>
+            <td>{{ row.get_kind_display }}</td>
+            <td>{{ row.city.name }}</td>
+            <td>{% if row.district %}{{ row.district.name }}{% else %}<span class="muted">მთელი ქალაქი</span>{% endif %}</td>
+            <td>{{ row.address.line1 }}</td>
+            <td>{% if can_manage %}<a href="{% url 'manage:warehouse-edit' row.pk %}">შეცვლა</a>{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="muted">საწყობი ჯერ არ არის.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

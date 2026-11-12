@@ -9,9 +9,12 @@ from apps.tracking.services import issue_party_tracking_urls
 WALKIN_CODE = "WALKIN"
 
 
-def walk_in_client() -> Client | None:
+def walk_in_client(company: CourierCompany | None = None) -> Client | None:
     """Shared client for guests who send a parcel without a shop account."""
-    company = CourierCompany.objects.filter(is_active=True).order_by("created_at").first()
+    if company is None:
+        from apps.companies.choice import resolve_company
+
+        company = resolve_company(None)
     if company is None:
         return None
     client, _ = Client.objects.get_or_create(

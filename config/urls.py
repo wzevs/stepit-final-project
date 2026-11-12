@@ -4,12 +4,14 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from apps.clients.views import ShopRegisterView
 from apps.core.views import GateLoginView, GuestSendView, HomeView
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
     path("send/", GuestSendView.as_view(), name="guest-send"),
     path("login/", GateLoginView.as_view(), name="gate-login"),
+    path("register/", ShopRegisterView.as_view(), name="shop-register"),
     path("admin/", admin.site.urls),
     path("api/v1/", include("apps.api.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

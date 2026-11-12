@@ -5,6 +5,7 @@ from rest_framework import serializers
 from apps.core.models import Address
 from apps.couriers.models import CourierProfile, Device
 from apps.shipments.models import Shipment
+from apps.shipments.reasons import FAILURE_REASONS
 from apps.shipments.services import COURIER_ACTIONS, courier_allowed_next
 from apps.tracking.services import MAX_POINTS_PER_REQUEST
 
@@ -87,10 +88,17 @@ class CourierShipmentSerializer(serializers.ModelSerializer):
             "notes",
             "scheduled_delivery_date",
             "failure_reason",
+            "failure_code",
+            "pod_required",
             "received_by",
             "picked_up_at",
             "delivered_at",
         )
+
+    pod_required = serializers.SerializerMethodField()
+
+    def get_pod_required(self, obj):
+        return bool(obj.recipient_pin)
 
     def get_allowed_next(self, obj):
         return sorted(courier_allowed_next(obj.status))
@@ -100,6 +108,8 @@ class TransitionSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=sorted((value, value) for value in COURIER_ACTIONS))
     note = serializers.CharField(required=False, allow_blank=True, default="")
     failure_reason = serializers.CharField(required=False, allow_blank=True, default="")
+    failure_code = serializers.CharField(required=False, allow_blank=True, default="")
+    pod_pin = serializers.CharField(required=False, allow_blank=True, default="")
     received_by = serializers.CharField(required=False, allow_blank=True, default="")
     latitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True)
     longitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False, allow_null=True)
@@ -111,8 +121,11 @@ class TransitionSerializer(serializers.Serializer):
         has_lng = attrs.get("longitude") is not None
         if has_lat != has_lng:
             raise serializers.ValidationError("latitude and longitude must be set together.")
-        if attrs["status"] == Shipment.Status.FAILED and not (attrs.get("failure_reason") or "").strip():
-            raise serializers.ValidationError({"failure_reason": "Required when delivery fails."})
+        if attrs["status"] == Shipment.Status.FAILED:
+            code = (attrs.get("failure_code") or attrs.get("failure_reason") or "").strip()
+            if code not in FAILURE_REASONS:
+                raise serializers.ValidationError({"failure_code": "აირჩიეთ მიზეზი სიიდან."})
+            attrs["failure_code"] = code
         return attrs
 
 

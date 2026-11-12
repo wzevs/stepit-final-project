@@ -1,0 +1,35 @@
+{% extends "dashboard/base.html" %}
+{% block title %}ფილიალი{% endblock %}
+{% block extra_head %}
+  {% include "includes/leaflet_base.html" %}
+{% endblock %}
+{% block content %}
+  <h1>{% if branch %}ფილიალის შეცვლა{% else %}ახალი ფილიალი{% endif %}</h1>
+  <form method="post" class="card">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<ul class="errorlist">{{ form.non_field_errors }}</ul>{% endif %}
+    <div class="row">
+      <div class="field">{{ form.name.label_tag }}{{ form.name }}{{ form.name.errors }}</div>
+      <div class="field">{{ form.district.label_tag }}{{ form.district }}{{ form.district.errors }}</div>
+      <div class="field">{{ form.contact_phone.label_tag }}{{ form.contact_phone }}{{ form.contact_phone.errors }}</div>
+    </div>
+    <div class="field" style="margin-bottom: 12px;">{{ form.line1.label_tag }}{{ form.line1 }}{{ form.line1.errors }}</div>
+    <div class="row">
+      <div class="field">{{ form.opens_at.label_tag }}{{ form.opens_at }}{{ form.opens_at.errors }}</div>
+      <div class="field">{{ form.closes_at.label_tag }}{{ form.closes_at }}{{ form.closes_at.errors }}</div>
+    </div>
+    {{ form.latitude }}{{ form.longitude }}
+    <div class="picker">
+      <p class="hint">რუკაზე პინი სავალდებულოა. უბანი განსაზღვრავს, რომელი ტარიფი დაითვლება ამ ფილიალიდან.</p>
+      <div id="branch-map" class="pick-map"></div>
+    </div>
+    <div class="field" style="margin-bottom: 16px;">
+      <label>{{ form.is_default }} {{ form.is_default.label }}</label>
+    </div>
+    <button type="submit">შენახვა</button>
+    <a href="{% url 'dashboard:branch-list' %}" style="margin-left: 12px;">გაუქმება</a>
+  </form>
+  <script>
+    bindLocationPicker("branch-map", document.getElementById("id_latitude"), document.getElementById("id_longitude"));
+  </script>
+{% endblock %}

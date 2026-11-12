@@ -8,12 +8,13 @@ signal is sent after commit. Notifications, tracking links, webhooks and
 
 import logging
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from apps.couriers.models import CourierProfile
 
-from .models import Shipment, ShipmentEvent
+from .models import CodLedger, Shipment, ShipmentEvent
+from .reasons import FAILURE_REASONS
 from .signals import shipment_courier_changed, shipment_status_changed
 
 logger = logging.getLogger(__name__)
@@ -80,7 +81,10 @@ def transition(
     latitude=None,
     longitude=None,
     failure_reason: str = "",
+    failure_code: str = "",
     received_by: str = "",
+    pod_pin: str = "",
+    proof_photo=None,
 ) -> ShipmentEvent:
     """
     Move a shipment to `to_status`. Courier assignment has its own functions:
@@ -98,22 +102,28 @@ def transition(
 
     extra_fields: set[str] = set()
     if to_status == S.FAILED:
-        if not failure_reason:
-            raise ShipmentError("failure_reason is required when delivery fails")
-        locked.failure_reason = failure_reason
-        extra_fields.add("failure_reason")
-    elif from_status == S.FAILED and locked.failure_reason:
+        code = (failure_code or failure_reason).strip()
+        if code not in FAILURE_REASONS:
+            raise ShipmentError("failure_code is required when delivery fails")
+        locked.failure_code = code
+        locked.failure_reason = FAILURE_REASONS[code]
+        extra_fields.update({"failure_code", "failure_reason"})
+    elif from_status == S.FAILED and (locked.failure_reason or locked.failure_code):
         locked.failure_reason = ""
-        extra_fields.add("failure_reason")
-    if to_status == S.DELIVERED and received_by:
-        locked.received_by = received_by
-        extra_fields.add("received_by")
+        locked.failure_code = ""
+        extra_fields.update({"failure_code", "failure_reason"})
+    if to_status == S.DELIVERED:
+        _require_proof(locked, pod_pin, proof_photo, extra_fields)
+        if received_by:
+            locked.received_by = received_by
+            extra_fields.add("received_by")
+        _open_cod(locked)
 
     event = _apply_status(
         locked,
         to_status,
         actor=actor,
-        note=note or failure_reason,
+        note=note or (locked.failure_reason if to_status == S.FAILED else ""),
         latitude=latitude,
         longitude=longitude,
         extra_fields=extra_fields,
@@ -202,8 +212,52 @@ def add_note(shipment: Shipment, note: str, *, actor=None, is_public: bool = Fal
 # ---------------------------------------------------------------------------
 
 
+def _require_proof(locked: Shipment, pod_pin: str, proof_photo, extra_fields: set[str]) -> None:
+    """A parcel with a recipient PIN is delivered only with that PIN or a photo."""
+    pin_ok = bool(locked.recipient_pin) and (pod_pin or "").strip() == locked.recipient_pin
+    has_photo = proof_photo is not None or bool(locked.proof_photo)
+    if locked.recipient_pin and not pin_ok and not has_photo:
+        raise ShipmentError("ჩაბარებას სჭირდება მიმღების PIN ან ფოტო")
+    if proof_photo is not None:
+        locked.proof_photo = proof_photo
+        extra_fields.add("proof_photo")
+    if pin_ok:
+        locked.pod_method = "pin"
+        extra_fields.add("pod_method")
+    elif has_photo and locked.recipient_pin:
+        locked.pod_method = "photo"
+        extra_fields.add("pod_method")
+
+
+def _open_cod(locked: Shipment) -> None:
+    if locked.payment_type != Shipment.PaymentType.COD or locked.cod_amount <= 0:
+        return
+    if locked.courier_id is None:
+        return
+    CodLedger.objects.get_or_create(
+        shipment=locked,
+        defaults={
+            "company": locked.company,
+            "client": locked.client,
+            "courier": locked.courier,
+            "amount": locked.cod_amount,
+            "collected_at": timezone.now(),
+        },
+    )
+
+
 def _lock(shipment: Shipment) -> Shipment:
-    return Shipment.objects.select_for_update().select_related("company", "courier").get(pk=shipment.pk)
+    """
+    Lock the shipment row. Courier is a nullable relation, and PostgreSQL
+    refuses FOR UPDATE on the outer side of that join, so the lock names
+    only this table.
+    """
+    query = Shipment.objects.select_related("company", "courier")
+    if connection.vendor == "postgresql":
+        query = query.select_for_update(of=("self",))
+    else:
+        query = query.select_for_update()
+    return query.get(pk=shipment.pk)
 
 
 def _sync(target: Shipment, source: Shipment) -> None:

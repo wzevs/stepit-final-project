@@ -1,0 +1,195 @@
+{% extends "manage/base.html" %}
+{% block title %}ტარიფები{% endblock %}
+{% block content %}
+  <h1>ტარიფები</h1>
+  <p class="muted">ფასი ირჩევა ასე: უბანი, მერე ქალაქი, მერე მაღაზიის საკუთარი სტანდარტული თუ გაწერილია, ბოლოს კომპანიის სტანდარტული. სახლამდე მიტანა ემატება მხოლოდ კარზე მიტანისას.</p>
+
+  <div class="row" style="align-items: stretch;">
+    <form method="post" class="card" style="flex: 1;">
+      {% csrf_token %}
+      <input type="hidden" name="intent" value="standard">
+      <h2 style="font-size: 16px; margin-top: 0;">სტანდარტული</h2>
+      <p class="muted">{% if standard %}ახლა {{ standard.price }} ₾{% else %}ჯერ არ არის. ამის გარეშე ფასი არ დაითვლება.{% endif %}</p>
+      <div class="field">{{ standard_form.price.label_tag }}{{ standard_form.price }}{{ standard_form.price.errors }}</div>
+      {% if can_manage %}<button type="submit" style="margin-top: 12px;">შენახვა</button>{% endif %}
+    </form>
+    <form method="post" class="card" style="flex: 1;">
+      {% csrf_token %}
+      <input type="hidden" name="intent" value="home">
+      <h2 style="font-size: 16px; margin-top: 0;">სახლამდე მიტანა</h2>
+      <p class="muted">{% if home %}დანამატი {{ home.price }} ₾{% else %}დანამატი ჯერ არ არის.{% endif %}</p>
+      <div class="field">{{ home_form.price.label_tag }}{{ home_form.price }}{{ home_form.price.errors }}</div>
+      {% if can_manage %}<button type="submit" style="margin-top: 12px;">შენახვა</button>{% endif %}
+    </form>
+  </div>
+
+  <div class="card" style="margin-top: 12px;">
+    <h2 style="font-size: 16px; margin-top: 0;">ქალაქებს შორის</h2>
+    <table>
+      <thead><tr><th>საიდან</th><th>სად</th><th>ფასი</th><th></th></tr></thead>
+      <tbody>
+        {% for row in city_rows %}
+          <tr>
+            <td>{{ row.origin_city.name }}</td>
+            <td>{{ row.destination_city.name }}</td>
+            <td>{{ row.price }} ₾</td>
+            <td>
+              {% if can_manage %}
+                <form method="post" style="margin: 0;">{% csrf_token %}
+                  <input type="hidden" name="intent" value="delete">
+                  <input type="hidden" name="tariff_id" value="{{ row.pk }}">
+                  <button class="danger" type="submit">წაშლა</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="muted">წყვილი ჯერ არ არის.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if can_manage %}
+      <form method="post" style="margin-top: 12px;">
+        {% csrf_token %}
+        <input type="hidden" name="intent" value="city">
+        <div class="row">
+          <div class="field">{{ city_form.origin_city.label_tag }}{{ city_form.origin_city }}{{ city_form.origin_city.errors }}</div>
+          <div class="field">{{ city_form.destination_city.label_tag }}{{ city_form.destination_city }}{{ city_form.destination_city.errors }}</div>
+          <div class="field">{{ city_form.price.label_tag }}{{ city_form.price }}{{ city_form.price.errors }}</div>
+        </div>
+        <button type="submit">დამატება</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin-top: 12px;">
+    <h2 style="font-size: 16px; margin-top: 0;">უბნებს შორის</h2>
+    <table>
+      <thead><tr><th>საიდან</th><th>სად</th><th>ფასი</th><th></th></tr></thead>
+      <tbody>
+        {% for row in district_rows %}
+          <tr>
+            <td>{{ row.origin_district }}</td>
+            <td>{{ row.destination_district }}</td>
+            <td>{{ row.price }} ₾</td>
+            <td>
+              {% if can_manage %}
+                <form method="post" style="margin: 0;">{% csrf_token %}
+                  <input type="hidden" name="intent" value="delete">
+                  <input type="hidden" name="tariff_id" value="{{ row.pk }}">
+                  <button class="danger" type="submit">წაშლა</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="muted">წყვილი ჯერ არ არის.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if can_manage %}
+      <form method="post" style="margin-top: 12px;">
+        {% csrf_token %}
+        <input type="hidden" name="intent" value="district">
+        <div class="row">
+          <div class="field">{{ district_form.origin_district.label_tag }}{{ district_form.origin_district }}{{ district_form.origin_district.errors }}</div>
+          <div class="field">{{ district_form.destination_district.label_tag }}{{ district_form.destination_district }}{{ district_form.destination_district.errors }}</div>
+          <div class="field">{{ district_form.price.label_tag }}{{ district_form.price }}{{ district_form.price.errors }}</div>
+        </div>
+        <button type="submit">დამატება</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin-top: 12px;">
+    <h2 style="font-size: 16px; margin-top: 0;">წონის საფეხური</h2>
+    <p class="muted">მარშრუტის ფასს ემატება. ქვედა ზღვარი შედის, ზედა არა. ცარიელი ზედა ზღვარი ნიშნავს „და ზემოთ“.</p>
+    <table>
+      <thead><tr><th>დან</th><th>მდე</th><th>დანამატი</th><th></th></tr></thead>
+      <tbody>
+        {% for row in weight_rows %}
+          <tr>
+            <td>{{ row.min_kg }} კგ</td>
+            <td>{% if row.max_kg %}{{ row.max_kg }} კგ{% else %}ზემოთ{% endif %}</td>
+            <td>+{{ row.surcharge }} ₾</td>
+            <td>
+              {% if can_manage %}
+                <form method="post" style="margin: 0;">{% csrf_token %}
+                  <input type="hidden" name="intent" value="delete_weight">
+                  <input type="hidden" name="band_id" value="{{ row.pk }}">
+                  <button class="danger" type="submit">წაშლა</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="muted">საფეხური ჯერ არ არის. წონა ფასს არ ცვლის.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if can_manage %}
+      <form method="post" style="margin-top: 12px;">
+        {% csrf_token %}
+        <input type="hidden" name="intent" value="weight">
+        {% if weight_form.non_field_errors %}<ul class="errorlist">{{ weight_form.non_field_errors }}</ul>{% endif %}
+        <div class="row">
+          <div class="field">{{ weight_form.min_kg.label_tag }}{{ weight_form.min_kg }}{{ weight_form.min_kg.errors }}</div>
+          <div class="field">{{ weight_form.max_kg.label_tag }}{{ weight_form.max_kg }}{{ weight_form.max_kg.errors }}</div>
+          <div class="field">{{ weight_form.surcharge.label_tag }}{{ weight_form.surcharge }}{{ weight_form.surcharge.errors }}</div>
+        </div>
+        <button type="submit">დამატება</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="row" style="align-items: stretch; margin-top: 12px;">
+    <form method="post" class="card" style="flex: 1;">
+      {% csrf_token %}
+      <input type="hidden" name="intent" value="cutoff">
+      <h2 style="font-size: 16px; margin-top: 0;">დღევანდელი საჭრელი საათი</h2>
+      <p class="muted">ამ საათამდე „დღეს“ ნიშნავს დღევანდელ თარიღს. საათის შემდეგ დღეს აღარ ეწევა.</p>
+      <div class="field">{{ cutoff_form.same_day_cutoff.label_tag }}{{ cutoff_form.same_day_cutoff }}{{ cutoff_form.same_day_cutoff.errors }}</div>
+      {% if can_manage %}<button type="submit" style="margin-top: 12px;">შენახვა</button>{% endif %}
+    </form>
+    <form method="post" class="card" style="flex: 1;">
+      {% csrf_token %}
+      <input type="hidden" name="intent" value="shop">
+      <h2 style="font-size: 16px; margin-top: 0;">მაღაზიის ტარიფი</h2>
+      <p class="muted">ცარიელი ფასი შლის გამონაკლისს და მაღაზია კომპანიის სტანდარტულს უბრუნდება. უბნის და ქალაქის წყვილი მაინც ჭარბობს.</p>
+      {% if shop_rows %}
+        <ul class="muted">
+          {% for row in shop_rows %}<li>{{ row.client.name }} — {{ row.standard_price }} ₾</li>{% endfor %}
+        </ul>
+      {% endif %}
+      <div class="row">
+        <div class="field">{{ shop_form.client.label_tag }}{{ shop_form.client }}{{ shop_form.client.errors }}</div>
+        <div class="field">{{ shop_form.standard_price.label_tag }}{{ shop_form.standard_price }}{{ shop_form.standard_price.errors }}</div>
+      </div>
+      {% if can_manage %}<button type="submit">შენახვა</button>{% endif %}
+    </form>
+  </div>
+
+  <div class="card" style="margin-top: 12px;">
+    <h2 style="font-size: 16px; margin-top: 0;">დათვლა</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="intent" value="try">
+      <div class="row">
+        <div class="field">{{ try_form.origin_district.label_tag }}{{ try_form.origin_district }}{{ try_form.origin_district.errors }}</div>
+        <div class="field">{{ try_form.destination_district.label_tag }}{{ try_form.destination_district }}{{ try_form.destination_district.errors }}</div>
+        <div class="field">{{ try_form.weight_kg.label_tag }}{{ try_form.weight_kg }}{{ try_form.weight_kg.errors }}</div>
+      </div>
+      <div class="field" style="margin-bottom: 12px;">
+        <label>{{ try_form.home_delivery }} {{ try_form.home_delivery.label }}</label>
+      </div>
+      <button type="submit">დათვლა</button>
+    </form>
+    {% if try_form.is_bound and quote and quote.weight_uncovered %}
+      <p class="muted">ამ წონის საფეხური არ არის, ამიტომ ფასი არ დაითვალა.</p>
+    {% elif try_form.is_bound and quote %}
+      <p><strong>{{ quote.amount }} ₾</strong> — {{ quote.basis_ka }} {{ quote.route_fee }} ₾{% if quote.weight_fee %} + წონა {{ quote.weight_fee }} ₾{% endif %}{% if quote.home_fee %} + სახლამდე {{ quote.home_fee }} ₾{% endif %}</p>
+    {% elif try_form.is_bound and try_form.is_valid %}
+      <p class="muted">სტანდარტული ტარიფი ჯერ არ არის, ამიტომ ფასი არ დაითვალა.</p>
+    {% endif %}
+  </div>
+{% endblock %}

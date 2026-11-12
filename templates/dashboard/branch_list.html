@@ -1,0 +1,27 @@
+{% extends "dashboard/base.html" %}
+{% block title %}ფილიალები{% endblock %}
+{% block content %}
+  <div class="row" style="justify-content: space-between;">
+    <h1>ფილიალები</h1>
+    <a class="button" href="{% url 'dashboard:branch-create' %}">ახალი ფილიალი</a>
+  </div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>სახელი</th><th>უბანი</th><th>მისამართი</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for branch in branches %}
+          <tr>
+            <td>{{ branch.name }}{% if branch.is_default %} <span class="badge">ძირითადი</span>{% endif %}</td>
+            <td>{% if branch.district %}{{ branch.district }}{% else %}<span class="muted">უბანი არ არის</span>{% endif %}</td>
+            <td>{{ branch.address.line1 }}</td>
+            <td><a href="{% url 'dashboard:branch-edit' branch.pk %}">შეცვლა</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="muted">ფილიალი ჯერ არ არის. დაამატეთ, რომ ამანათი იქიდან გაიგზავნოს.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

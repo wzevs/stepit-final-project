@@ -37,6 +37,23 @@ class CourierProfile(UUIDModel, TimeStampedModel):
         return f"{self.user.get_full_name() or self.user.email} @ {self.company.name}"
 
 
+class CourierArea(models.Model):
+    """A district this courier covers. Auto-assign uses it before the lightest load."""
+
+    courier = models.ForeignKey(CourierProfile, on_delete=models.CASCADE, related_name="areas")
+    district = models.ForeignKey(
+        "network.District", on_delete=models.PROTECT, related_name="courier_areas"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["courier", "district"], name="uniq_courier_district"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.courier} · {self.district}"
+
+
 class Device(TimeStampedModel):
     """
     A courier's work device (company-issued Android tablet/phone).

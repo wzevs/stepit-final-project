@@ -9,8 +9,8 @@
   .row { display: flex; gap: 12px; flex-wrap: wrap; }
   .field { flex: 1 1 240px; margin-bottom: 12px; }
   label { display: block; font-size: 13px; margin-bottom: 4px; }
-  input[type="text"], input[type="tel"], input[type="email"] {
-    font: inherit; padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 8px; width: 100%;
+  input[type="text"], input[type="tel"], input[type="email"], select {
+    font: inherit; padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 8px; width: 100%; background: #fff;
   }
   .errorlist { color: #9b2335; font-size: 13px; margin: 4px 0 8px; padding: 0; list-style: none; }
   .ok {
@@ -42,10 +42,13 @@
       <div class="ok">
         <p style="margin:0 0 6px">ამანათი მიღებულია.</p>
         <p style="margin:0">ტრეკინგი: <strong>{{ tracking_number }}</strong></p>
+        {% if recipient_pin %}
+          <p style="margin:10px 0 0">მიმღების PIN: <strong>{{ recipient_pin }}</strong>. კურიერს ეს კოდი უთხარით.</p>
+        {% endif %}
         {% if assigned %}
           <p style="margin:10px 0 0">კურიერი მიბმულია. რუკაზე ჩანს აღება და მიწოდება.</p>
         {% else %}
-          <p style="margin:10px 0 0">კურიერი ახლა ონლაინ არ არის. დისპეტჩერი მიაბამს, რუკის ლინკები უკვე მოქმედებს.</p>
+          <p style="margin:10px 0 0">კურიერი ახლა ონლაინ არ არის. დისპეჩერი მიაბამს, რუკის ლინკები უკვე მოქმედებს.</p>
         {% endif %}
         {% if sender_url %}
           <p style="margin:10px 0 0"><a href="{{ sender_url }}">თქვენი რუკა</a></p>
@@ -58,6 +61,11 @@
     <form method="post" class="panel">
       {% csrf_token %}
       {% if form.non_field_errors %}<ul class="errorlist">{{ form.non_field_errors }}</ul>{% endif %}
+      <div class="field">
+        {{ form.company.label_tag }}{{ form.company }}
+        <p class="hint">{{ form.company.help_text }}</p>
+        {{ form.company.errors }}
+      </div>
       <div class="row">
         <div class="field">{{ form.sender_name.label_tag }}{{ form.sender_name }}{{ form.sender_name.errors }}</div>
         <div class="field">{{ form.sender_phone.label_tag }}{{ form.sender_phone }}{{ form.sender_phone.errors }}</div>
