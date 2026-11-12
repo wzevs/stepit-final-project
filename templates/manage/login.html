@@ -2,7 +2,7 @@
 {% block title %}შესვლა{% endblock %}
 {% block content %}
   <div class="card" style="max-width: 420px; margin: 40px auto;">
-    <h1>მენეჯერის შესვლა</h1>
+    <h1>დისპეჩერის შესვლა</h1>
     <form method="post">
       {% csrf_token %}
       {% if form.non_field_errors %}<ul class="errorlist">{{ form.non_field_errors }}</ul>{% endif %}

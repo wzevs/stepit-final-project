@@ -1,6 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
+from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.db.models import Q
@@ -19,7 +20,7 @@ from apps.shipments.models import Shipment
 from apps.shipments.services import InvalidTransition, ShipmentError, allowed_next, transition
 from apps.tracking.services import issue_staff_tracking_url
 
-from .forms import BranchForm, ShipmentCreateForm
+from .forms import BranchForm, ShipmentCreateForm, ShopRegisterForm
 
 
 class ShopMixin(LoginRequiredMixin):
@@ -60,6 +61,40 @@ class DashboardLoginView(LoginView):
 
 class DashboardLogoutView(LogoutView):
     next_page = "/dashboard/login/"
+
+
+class ShopRegisterView(View):
+    """A shop creates its own user, client row, and manager membership."""
+
+    template_name = "public/register.html"
+
+    def get(self, request):
+        if _shop_session(request):
+            return redirect("/dashboard/shipments/")
+        return render(request, self.template_name, {"form": ShopRegisterForm()})
+
+    def post(self, request):
+        if _shop_session(request):
+            return redirect("/dashboard/shipments/")
+        form = ShopRegisterForm(request.POST)
+        if not form.is_valid():
+            return render(request, self.template_name, {"form": form})
+        if form.cleaned_data["company"] is None:
+            form.add_error("company", "რეგისტრაცია ჯერ არ არის ხელმისაწვდომი.")
+            return render(request, self.template_name, {"form": form})
+        user = form.save()
+        login(request, user)
+        shop = user.client_memberships.select_related("client", "client__company").get().client
+        messages.success(
+            request,
+            f"კლიენტი დარეგისტრირდა კომპანიაში {shop.company.name}. კოდი: {shop.code}",
+        )
+        return redirect("/dashboard/shipments/")
+
+
+def _shop_session(request) -> bool:
+    user = request.user
+    return user.is_authenticated and user.client_memberships.filter(is_active=True).exists()
 
 
 class SwitchShopView(ShopMixin, View):

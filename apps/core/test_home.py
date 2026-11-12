@@ -40,7 +40,7 @@ def test_login_page_has_role_choice(client):
     assert 'href="/courier/map/"' in body
     assert "მაღაზია" in body
     assert "კურიერი" in body
-    assert "მფლობელი" in body
+    assert "დისპეჩერი" in body
 
 
 def test_guest_tracking_shows_status_but_not_the_phone(client, shipment):
@@ -228,6 +228,29 @@ def test_guest_send_binds_available_courier_and_opens_live_map(client, company, 
         shipment=shipment, template="walk_in_sender", channel=Notification.Channel.EMAIL
     ).exists()
     assert Notification.objects.filter(shipment=shipment, channel=Notification.Channel.SMS).count() == 2
+
+
+def test_guest_can_pick_a_courier_company(client, company):
+    from apps.companies.models import CourierCompany
+
+    other = CourierCompany.objects.create(name="Other Express", slug="other", tracking_prefix="OTH")
+    response = client.post(reverse("guest-send"), {**_GUEST_SEND, "company": str(other.pk)})
+    assert response.status_code == 302
+    shipment = Shipment.objects.select_related("client").get()
+    assert shipment.client.company_id == other.pk
+    assert shipment.client.code == "WALKIN"
+
+
+def test_guest_any_company_prefers_one_with_a_free_courier(client, company, courier_factory):
+    from apps.companies.models import CourierCompany
+
+    other = CourierCompany.objects.create(name="Busy Express", slug="busy", tracking_prefix="BSY")
+    courier_factory(email="free@example.com", company=other, status=CourierProfile.Status.AVAILABLE)
+    response = client.post(reverse("guest-send"), {**_GUEST_SEND, "company": "any"})
+    shipment = Shipment.objects.select_related("client").get()
+    assert response.status_code == 302
+    assert shipment.client.company_id == other.pk
+    assert shipment.courier_id is not None
 
 
 def test_wrong_password(client, db):

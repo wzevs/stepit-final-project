@@ -332,3 +332,57 @@ def test_shop_must_give_a_weight_when_bands_exist(client, shop_user, company):
     assert missing.status_code == 200
     assert "წონა აუცილებელია" in missing.content.decode()
     assert not Shipment.objects.exists()
+
+
+_REGISTER = {
+    "shop_name": "ელიტი პლუს",
+    "contact_name": "ანა კაპანაძე",
+    "email": "newshop@example.com",
+    "phone": "555100099",
+    "password": "ShopPass2026",
+    "password2": "ShopPass2026",
+}
+
+
+def test_shop_registers_and_lands_in_the_dashboard(client, company):
+    response = client.post(reverse("shop-register"), _REGISTER)
+    assert response.status_code == 302
+    assert response.url == "/dashboard/shipments/"
+    user = User.objects.get(email="newshop@example.com")
+    assert user.role == User.Role.CLIENT_STAFF
+    assert user.first_name == "ანა"
+    membership = user.client_memberships.select_related("client").get()
+    assert membership.role == ClientMembership.Role.MANAGER
+    assert membership.client.company == company
+    assert membership.client.name == "ელიტი პლუს"
+    assert membership.client.api_enabled is False
+    assert membership.client.code
+    page = client.get("/dashboard/shipments/")
+    assert page.status_code == 200
+    assert "ელიტი პლუს" in page.content.decode()
+
+
+def test_shop_register_rejects_a_duplicate_email(client, company):
+    User.objects.create_user(email="newshop@example.com", password="ShopPass2026")
+    response = client.post(reverse("shop-register"), _REGISTER)
+    assert response.status_code == 200
+    assert "უკვე რეგისტრირებულია" in response.content.decode()
+    assert Client.objects.filter(name="ელიტი პლუს").count() == 0
+
+
+def test_shop_register_needs_a_company(client):
+    response = client.post(reverse("shop-register"), _REGISTER)
+    assert response.status_code == 200
+    assert "არ არის ხელმისაწვდომი" in response.content.decode()
+    assert not User.objects.filter(email="newshop@example.com").exists()
+
+
+def test_client_can_choose_the_courier_company(client, company):
+    from apps.companies.models import CourierCompany
+
+    other = CourierCompany.objects.create(name="Other Express", slug="other", tracking_prefix="OTH")
+    response = client.post(reverse("shop-register"), {**_REGISTER, "company": str(other.pk)})
+    assert response.status_code == 302
+    membership = User.objects.get(email="newshop@example.com").client_memberships.get()
+    assert membership.client.company_id == other.pk
+    assert company.pk != other.pk

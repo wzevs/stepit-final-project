@@ -1,7 +1,14 @@
+import re
+import secrets
+
 from django import forms
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from apps.clients.models import PickupPoint
+from apps.accounts.models import User
+from apps.clients.models import Client, ClientMembership, PickupPoint
+from apps.companies.choice import ANY, company_choices, resolve_company
 from apps.core.geo import require_coords
 from apps.core.models import Address
 from apps.network.models import District, Warehouse, WeightBand
@@ -283,3 +290,93 @@ class BranchForm(forms.Form):
             self.instance.is_default = bool(data.get("is_default"))
             self.instance.save()
             return self.instance
+
+
+class ShopRegisterForm(forms.Form):
+    """A shop opens its own account. The company still turns on API access."""
+
+    company = forms.ChoiceField(
+        required=False,
+        label="საკურიერო კომპანია",
+        help_text="სულ ერთია ნიშნავს: ავირჩევთ კომპანიას, რომელსაც ახლა თავისუფალი კურიერი ჰყავს.",
+    )
+    shop_name = forms.CharField(max_length=200, label="კლიენტის სახელი")
+    contact_name = forms.CharField(max_length=150, label="საკონტაქტო პირი")
+    email = forms.EmailField(label="ელფოსტა")
+    phone = forms.CharField(max_length=20, label="ტელეფონი")
+    password = forms.CharField(widget=forms.PasswordInput, label="პაროლი")
+    password2 = forms.CharField(widget=forms.PasswordInput, label="პაროლი თავიდან")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["company"].choices = company_choices()
+        self.fields["company"].initial = ANY
+
+    def clean_company(self):
+        return resolve_company(self.cleaned_data.get("company") or ANY)
+
+    def clean_shop_name(self):
+        name = self.cleaned_data["shop_name"].strip()
+        if not name:
+            raise forms.ValidationError("სახელი აუცილებელია.")
+        return name
+
+    def clean_email(self):
+        email = User.objects.normalize_email(self.cleaned_data["email"])
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("ეს ელფოსტა უკვე რეგისტრირებულია.")
+        return email
+
+    def clean(self):
+        cleaned = super().clean()
+        password = cleaned.get("password")
+        if password and password != cleaned.get("password2"):
+            self.add_error("password2", "პაროლები არ ემთხვევა.")
+        if password and cleaned.get("email"):
+            candidate = User(email=cleaned["email"], first_name=(cleaned.get("contact_name") or "")[:150])
+            try:
+                validate_password(password, candidate)
+            except ValidationError as exc:
+                self.add_error("password", exc.messages)
+        return cleaned
+
+    def save(self):
+        data = self.cleaned_data
+        company = data["company"]
+        contact = data["contact_name"].strip()
+        parts = contact.split()
+        first_name = parts[0]
+        last_name = " ".join(parts[1:])
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=data["email"],
+                password=data["password"],
+                role=User.Role.CLIENT_STAFF,
+                first_name=first_name,
+                last_name=last_name,
+                phone=data["phone"].strip(),
+            )
+            client = Client.objects.create(
+                company=company,
+                name=data["shop_name"],
+                code=_shop_code(company, data["shop_name"]),
+                contact_name=contact,
+                contact_email=data["email"],
+                contact_phone=data["phone"].strip(),
+                api_enabled=False,
+            )
+            ClientMembership.objects.create(
+                user=user, client=client, role=ClientMembership.Role.MANAGER
+            )
+        return user
+
+
+def _shop_code(company, name: str) -> str:
+    base = re.sub(r"[^A-Z0-9]", "", name.upper())[:20] or "SHOP"
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    for _ in range(8):
+        suffix = "".join(secrets.choice(alphabet) for _ in range(4))
+        code = f"{base}-{suffix}"[:30]
+        if not Client.objects.filter(company=company, code=code).exists():
+            return code
+    raise forms.ValidationError("კოდი ვერ შეიქმნა. სცადეთ თავიდან.")

@@ -29,7 +29,7 @@
 <body>
   <main>
     <h1>Galaxy Express — ბაზის ცხრილები</h1>
-    <p class="muted">საკურიერო კომპანიის ქსელი და ტარიფი. ნარინჯისფერი ველი სხვა ცხრილზე მიუთითებს.</p>
+    <p class="muted">საკურიერო კომპანიის ქსელი და ტარიფი. ნარინჯისფერი ველი სხვა ცხრილზე მიუთითებს. სალაპარაკო სვლა: <a href="slides.html">slides.html</a></p>
 
     <h2>ადგილი</h2>
     <div class="grid">
@@ -114,13 +114,44 @@
       </table>
     </div>
 
+    <h2>წონა, მაღაზიის ტარიფი, ნაღდი</h2>
+    <div class="grid">
+      <table class="card">
+        <caption>network_weightband</caption>
+        <tr><th class="fk">company_id</th><td>→ companies_couriercompany</td></tr>
+        <tr><th>min_kg / max_kg</th><td>ქვედა შედის, ზედა არა. ცარიელი ზედა ნიშნავს „და ზემოთ“</td></tr>
+        <tr><th>surcharge</th><td>დანამატი ლარში, 0 ან მეტი</td></tr>
+      </table>
+      <table class="card">
+        <caption>network_shoptariff</caption>
+        <tr><th class="fk">client_id</th><td>→ clients_client, ერთი მაღაზია ერთხელ</td></tr>
+        <tr><th>standard_price</th><td>მაღაზიის სტანდარტული. უბანი და ქალაქი მაინც უფრო კონკრეტულია</td></tr>
+      </table>
+      <table class="card">
+        <caption>shipments_codledger</caption>
+        <tr><th class="fk">shipment_id</th><td>→ shipments_shipment, ერთი ჩანაწერი</td></tr>
+        <tr><th>amount</th><td>0-ზე მეტი. კურიერმა აიღო</td></tr>
+        <tr><th>settled_at</th><td>ცარიელი სანამ მაღაზიას არ ჩაბარდება</td></tr>
+      </table>
+    </div>
+
+    <h2>ტრიგერი</h2>
+    <div class="formula">
+      <p><code>warehouse_district_city</code> — საწყობის ჩაწერამდე. უბნის ქალაქი უნდა ემთხვეოდეს საწყობის ქალაქს.</p>
+      <p><code>warehouse_same_company</code> — ამანათის ჩაწერამდე. გატანის საწყობი იმავე კომპანიისა უნდა იყოს.</p>
+      <p class="muted" style="margin: 0;">CHECK ერთ რიგს ხედავს. ტრიგერი მეორე ცხრილს ადარებს. ორივე PL/pgSQL-ია და მხოლოდ PostgreSQL-ზე დგება.</p>
+    </div>
+
     <h2>პრეზენტაციაზე საჩვენებელი SQL</h2>
     <pre class="sql">SELECT kind, origin_city, destination_city, origin_district, destination_district, price
 FROM network_tariff_sheet;
 
 SELECT name, kind, city, district
-FROM network_warehouse_sheet;</pre>
-    <p class="muted">ორივე არის VIEW: ფასის წესს და საწყობს ქალაქისა და უბნის სახელს უკავშირებს. ცხრილები PostgreSQL-შია, არა SQLite-ში.</p>
+FROM network_warehouse_sheet;
+
+SELECT tracking_number, shop_name, amount, collected_at
+FROM cod_open_sheet;</pre>
+    <p class="muted">სამივე VIEW-ია. პირველი ორი სახელს უკავშირებს id-ს. მესამე მხოლოდ ღია ნაღდს აჩვენებს. ცხრილები PostgreSQL-შია.</p>
   </main>
 </body>
 </html>

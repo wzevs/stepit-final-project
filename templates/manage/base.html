@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}მენეჯერი{% endblock %} · კურიერი</title>
+  <title>{% block title %}დისპეჩერი{% endblock %} · დისპეჩერი</title>
   <style>
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -58,7 +58,7 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <header>
-    <strong>მენეჯერი</strong>
+    <strong>დისპეჩერი</strong>
     {% if company %}<span>{{ company.name }}</span>{% endif %}
     {% if memberships|length > 1 %}
       <form method="post" action="{% url 'manage:switch-company' %}">

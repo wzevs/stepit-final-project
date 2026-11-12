@@ -32,7 +32,7 @@
     <div class="roles" role="tablist">
       <button type="button" class="active" data-role="shop">მაღაზია</button>
       <button type="button" data-role="courier">კურიერი</button>
-      <button type="button" data-role="owner">მფლობელი</button>
+      <button type="button" data-role="owner">დისპეჩერი</button>
     </div>
 
     <div class="panel" id="panel-shop">
@@ -46,6 +46,7 @@
         <input id="shop-password" type="password" name="password" required autocomplete="current-password">
         <button class="btn-blue" type="submit">შესვლა</button>
       </form>
+      <p style="margin: 16px 0 0;">ანგარიში არ გაქვს? <a href="{% url 'shop-register' %}">კლიენტის რეგისტრაცია</a></p>
     </div>
 
     <div class="panel" id="panel-courier" hidden>
@@ -55,7 +56,7 @@
     </div>
 
     <div class="panel" id="panel-owner" hidden>
-      <h2>მფლობელი / დისპეჩერი</h2>
+      <h2>დისპეჩერი</h2>
       <form method="post" action="{% url 'gate-login' %}">
         {% csrf_token %}
         <input type="hidden" name="role" value="owner">

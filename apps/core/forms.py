@@ -1,10 +1,16 @@
 from django import forms
 
+from apps.companies.choice import ANY, company_choices, resolve_company
 from apps.core.geo import require_coords
 from apps.shipments.models import Shipment
 
 
 class GuestSendForm(forms.Form):
+    company = forms.ChoiceField(
+        required=False,
+        label="საკურიერო კომპანია",
+        help_text="სულ ერთია ნიშნავს: ავირჩევთ კომპანიას, რომელსაც ახლა თავისუფალი კურიერი ჰყავს.",
+    )
     sender_name = forms.CharField(max_length=150, label="თქვენი სახელი")
     sender_phone = forms.CharField(max_length=20, label="თქვენი ტელეფონი")
     sender_email = forms.EmailField(label="თქვენი ელფოსტა")
@@ -30,6 +36,14 @@ class GuestSendForm(forms.Form):
     delivery_line2 = forms.CharField(max_length=255, required=False, label="სადარბაზო, სართული, ბინა")
     description = forms.CharField(max_length=255, required=False, label="რას აგზავნით")
     is_fragile = forms.BooleanField(required=False, label="მყიფეა")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["company"].choices = company_choices()
+        self.fields["company"].initial = ANY
+
+    def clean_company(self):
+        return resolve_company(self.cleaned_data.get("company") or ANY)
 
     def clean(self):
         cleaned = super().clean()

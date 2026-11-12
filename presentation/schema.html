@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8">
+  <title>Galaxy Express — ბაზის სქემა</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 13px/1.35 "Segoe UI", sans-serif; color: #1c1e21; background: #f4f6f5; }
+    header { padding: 18px 24px 8px; max-width: 1720px; }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    h2 { font-size: 15px; margin: 0 0 8px; color: #143d32; }
+    p { margin: 0 0 6px; }
+    .muted { color: #5c6560; }
+    .toolbar { position: sticky; top: 0; z-index: 5; background: #f4f6f5; padding: 8px 24px; border-bottom: 1px solid #d5dbd8; }
+    button { font: inherit; background: #143d32; color: #fff; border: 0; padding: 6px 12px; cursor: pointer; }
+    #shot { padding: 8px 0 28px; }
+    #board { position: relative; width: max-content; padding: 150px 48px 16px 80px; }
+    #wires { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; overflow: visible; }
+    #cols { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, 300px); column-gap: 120px; }
+    .col { display: flex; flex-direction: column; gap: 10px; }
+    table.card { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #d5dbd8; }
+    table.card caption { text-align: left; font-weight: 700; padding: 6px 8px; background: #143d32; color: #fff; }
+    table.card th, table.card td { text-align: left; padding: 2px 8px; border-top: 1px solid #e6ebe8; font-weight: 400; vertical-align: top; }
+    table.card th { width: 58%; font-family: Consolas, monospace; font-size: 12px; }
+    table.card .pk th { color: #0f6b4c; font-weight: 700; }
+    table.card .fk th { color: #8a4b08; font-weight: 700; }
+    .legend { display: flex; gap: 14px; margin-top: 8px; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .sw { width: 12px; height: 12px; display: inline-block; }
+    .sw.pk { background: #0f6b4c; }
+    .sw.fk { background: #8a4b08; }
+    #catalog { padding: 8px 24px 48px; max-width: 1720px; }
+    #full { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: start; }
+    .views { display: grid; grid-template-columns: repeat(3, 300px); gap: 12px; padding: 0 24px 8px 72px; }
+    table.view caption { background: #3d4a44; }
+    table.view { border-style: dashed; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Galaxy Express — ბაზის სქემა</h1>
+    <p>ისარი იწყება foreign key-ის ველზე და მთავრდება იმ ცხრილზე, რომელსაც ეს ველი უთითებს. ეს არის კავშირი „ბევრი → ერთი“.</p>
+    <div class="legend">
+      <span><i class="sw pk"></i> პირველადი გასაღები</span>
+      <span><i class="sw fk"></i> foreign key</span>
+      <span>1:1 ნიშნავს OneToOne-ს, null კი ცარიელ მნიშვნელობას</span>
+    </div>
+    <p class="muted">სურათზე არ არის Django-ს სამსახურებრივი ცხრილები: django_migrations, django_session, django_admin_log, django_content_type, auth_group, auth_permission.</p>
+  </header>
+  <div class="toolbar">
+    <button type="button" id="fit">მთელი სქემა ეკრანზე</button>
+  </div>
+  <div id="shot">
+    <div id="board">
+      <svg id="wires" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="cols"></div>
+    </div>
+  </div>
+  <header>
+    <h2>VIEW — ცხრილი კი არა, მზა მოთხოვნა</h2>
+    <p class="muted">სამივე იკითხება როგორც ცხრილი, მაგრამ საკუთარ მონაცემს არ ინახავს.</p>
+  </header>
+  <div class="views" id="views"></div>
+  <div id="catalog">
+    <h2>ყველა სვეტი</h2>
+    <p class="muted">created_at და updated_at ემატება თითქმის ყველა ბიზნეს-ცხრილს. გამონაკლისია network_city, network_district, couriers_courierarea. tracking_courierlocation-ს დროის ველებია recorded_at და received_at.</p>
+    <div id="full"></div>
+  </div>
+  <script>
+    const GROUPS = ["ადამიანები", "ორგანიზაცია", "ამანათი", "ქსელი"];
+    const LABEL = {
+      accounts_user: "მომხმარებელი",
+      companies_couriercompany: "კომპანია",
+      companies_companymembership: "წევრობა",
+      clients_client: "მაღაზია",
+      clients_clientmembership: "მაღაზიის წევრი",
+      clients_pickuppoint: "ფილიალი",
+      core_address: "მისამართი",
+      couriers_courierprofile: "კურიერი",
+      couriers_device: "მოწყობილობა",
+      couriers_courierarea: "კურიერის უბანი",
+      network_city: "ქალაქი",
+      network_district: "უბანი",
+      network_warehouse: "საწყობი",
+      network_tariff: "ტარიფი",
+      network_weightband: "წონა",
+      network_shoptariff: "მაღაზიის ტარიფი",
+      shipments_shipment: "ამანათი",
+      shipments_shipmentevent: "ისტორია",
+      shipments_codledger: "ნაღდი",
+      tracking_courierlocation: "GPS",
+      tracking_trackingtoken: "ბმული",
+      notifications_notification: "შეტყობინება",
+      integrations_apikey: "API გასაღები",
+      integrations_webhook: "webhook",
+      integrations_webhookdelivery: "გაგზავნა"
+    };
+    const ts = [
+      { n: "created_at", k: "", note: "ავტომატური" },
+      { n: "updated_at", k: "", note: "ავტომატური" }
+    ];
+    const pk = (note) => ({ n: "id", k: "pk", note });
+    const tables = [
+      { name: "accounts_user", col: 0, fields: [
+        pk("uuid"),
+        { n: "email", k: "key", note: "შესვლა, უნიკალური" },
+        { n: "phone", k: "", note: "" },
+        { n: "role", k: "key", note: "რომელ გვერდზე შედის" },
+        { n: "password", k: "", note: "ჰეში" },
+        { n: "first_name", k: "", note: "" },
+        { n: "last_name", k: "", note: "" },
+        { n: "is_active", k: "", note: "" },
+        { n: "is_staff", k: "", note: "" },
+        { n: "is_superuser", k: "", note: "" },
+        { n: "last_login", k: "", note: "" },
+        { n: "date_joined", k: "", note: "" }
+      ]},
+      { name: "companies_companymembership", col: 0, fields: [
+        pk("bigint"), ...ts,
+        { n: "user_id", k: "fk", to: "accounts_user" },
+        { n: "company_id", k: "fk", to: "companies_couriercompany" },
+        { n: "role", k: "key", note: "owner / dispatcher / viewer" },
+        { n: "is_active", k: "", note: "" }
+      ]},
+      { name: "clients_clientmembership", col: 0, fields: [
+        pk("bigint"), ...ts,
+        { n: "user_id", k: "fk", to: "accounts_user" },
+        { n: "client_id", k: "fk", to: "clients_client" },
+        { n: "role", k: "key", note: "manager / operator" },
+        { n: "is_active", k: "", note: "" }
+      ]},
+      { name: "couriers_courierprofile", col: 0, fields: [
+        pk("uuid"), ...ts,
+        { n: "user_id", k: "o2o", to: "accounts_user" },
+        { n: "company_id", k: "fk", to: "companies_couriercompany" },
+        { n: "vehicle_type", k: "", note: "" },
+        { n: "vehicle_plate", k: "", note: "" },
+        { n: "status", k: "key", note: "offline / available / busy" },
+        { n: "is_active", k: "", note: "" },
+        { n: "last_latitude", k: "", note: "" },
+        { n: "last_longitude", k: "", note: "" },
+        { n: "last_location_at", k: "", note: "" }
+      ]},
+      { name: "couriers_device", col: 0, fields: [
+        pk("bigint"), ...ts,
+        { n: "courier_id", k: "fk", to: "couriers_courierprofile" },
+        { n: "platform", k: "", note: "" },
+        { n: "fcm_token", k: "", note: "უნიკალური" },
+        { n: "device_id", k: "", note: "" },
+        { n: "model_name", k: "", note: "" },
+        { n: "app_version", k: "", note: "" },
+        { n: "is_active", k: "", note: "" },
+        { n: "last_seen_at", k: "", note: "" }
+      ]},
+      { name: "couriers_courierarea", col: 0, fields: [
+        pk("bigint"),
+        { n: "courier_id", k: "fk", to: "couriers_courierprofile" },
+        { n: "district_id", k: "fk", to: "network_district" }
+      ]},
+      { name: "tracking_courierlocation", col: 0, fields: [
+        pk("bigint"),
+        { n: "courier_id", k: "fk", to: "couriers_courierprofile" },
+        { n: "latitude", k: "", note: "" },
+        { n: "longitude", k: "", note: "" },
+        { n: "accuracy_m", k: "", note: "" },
+        { n: "speed_mps", k: "", note: "" },
+        { n: "heading_deg", k: "", note: "" },
+        { n: "battery_pct", k: "", note: "" },
+        { n: "recorded_at", k: "key", note: "ტელეფონის დრო" },
+        { n: "received_at", k: "", note: "სერვერის დრო" }
+      ]},
+      { name: "companies_couriercompany", col: 1, fields: [
+        pk("uuid"), ...ts,
+        { n: "name", k: "key", note: "სახელი" },
+        { n: "slug", k: "", note: "უნიკალური" },
+        { n: "legal_name", k: "", note: "" },
+        { n: "tax_id", k: "", note: "" },
+        { n: "contact_email", k: "", note: "" },
+        { n: "contact_phone", k: "", note: "" },
+        { n: "is_active", k: "", note: "" },
+        { n: "tracking_prefix", k: "key", note: "მაგ. GLX" },
+        { n: "same_day_cutoff", k: "", note: "საათი" },
+        { n: "settings", k: "", note: "json" }
+      ]},
+      { name: "clients_client", col: 1, fields: [
+        pk("uuid"), ...ts,
+        { n: "company_id", k: "fk", to: "companies_couriercompany" },
+        { n: "name", k: "key", note: "სახელი" },
+        { n: "code", k: "key", note: "კოდი" },
+        { n: "contact_name", k: "", note: "" },
+        { n: "contact_email", k: "", note: "" },
+        { n: "contact_phone", k: "", note: "" },
+        { n: "billing_address_id", k: "fk", to: "core_address", note: "null" },
+        { n: "is_active", k: "", note: "" },
+        { n: "api_enabled", k: "key", note: "API ჩართულია" }
+      ]},
+      { name: "clients_pickuppoint", col: 1, fields: [
+        pk("bigint"), ...ts,
+        { n: "client_id", k: "fk", to: "clients_client" },
+        { n: "name", k: "key", note: "ფილიალი" },
+        { n: "district_id", k: "fk", to: "network_district", note: "null" },
+        { n: "address_id", k: "fk", to: "core_address" },
+        { n: "contact_phone", k: "", note: "" },
+        { n: "opens_at", k: "", note: "" },
+        { n: "closes_at", k: "", note: "" },
+        { n: "is_default", k: "", note: "ერთი ძირითადი" },
+        { n: "is_active", k: "", note: "" }
+      ]},
+      { name: "core_address", col: 1, fields: [
+        pk("bigint"), ...ts,
+        { n: "country", k: "", note: "GE" },
+        { n: "city", k: "key", note: "ტექსტი, არა FK" },
+        { n: "line1", k: "key", note: "ქუჩა" },
+        { n: "line2", k: "", note: "" },
+        { n: "postal_code", k: "", note: "" },
+        { n: "latitude", k: "", note: "" },
+        { n: "longitude", k: "", note: "" },
+        { n: "google_place_id", k: "", note: "" },
+        { n: "formatted", k: "", note: "" },
+        { n: "notes", k: "", note: "" }
+      ]},
+      { name: "network_shoptariff", col: 1, fields: [
+        pk("bigint"), ...ts,
+        { n: "company_id", k: "fk", to: "companies_couriercompany" },
+        { n: "client_id", k: "o2o", to: "clients_client" },
+        { n: "standard_price", k: "key", note: "ლარი" }
+      ]},
+      { name: "integrations_apikey", col: 1, fields: [
+        pk("bigint"), ...ts,
+        { n: "client_id", k: "fk", to: "clients_client" },
+        { n: "name", k: "", note: "" },
+        { n: "prefix", k: "", note: "უნიკალური" },
+        { n: "key_hash", k: "key", note: "თავად გასაღები არ ინახება" },
+        { n: "is_active", k: "", note: "" },
+        { n: "last_used_at", k: "", note: "" },
+        { n: "expires_at", k: "", note: "" }
+      ]},
+      { name: "integrations_webhook", col: 1, fields: [
+        pk("bigint"), ...ts,
+        { n: "client_id", k: "fk", to: "clients_client" },
+        { n: "url", k: "", note: "" },
+        { n: "secret", k: "", note: "" },
+        { n: "events", k: "", note: "json" },
+        { n: "is_active", k: "", note: "" }
+      ]},
+      { name: "integrations_webhookdelivery", col: 1, fields: [
+        pk("bigint"),
+        { n: "webhook_id", k: "fk", to: "integrations_webhook" },
+        { n: "event", k: "", note: "" },
+        { n: "payload", k: "", note: "json" },
+        { n: "response_status", k: "", note: "" },
+        { n: "response_body", k: "", note: "" },
+        { n: "attempts", k: "", note: "" },
+        { n: "next_retry_at", k: "", note: "" },
+        { n: "delivered_at", k: "", note: "" },
+        { n: "created_at", k: "", note: "" }
+      ]},
+      { name: "shipments_shipment", col: 2, fields: [
+        pk("uuid"), ...ts,
+        { n: "company_id", k: "fk", to: "companies_couriercompany" },
+        { n: "client_id", k: "fk", to: "clients_client" },
+        { n: "courier_id", k: "fk", to: "couriers_courierprofile", note: "null" },
+        { n: "created_by_id", k: "fk", to: "accounts_user", note: "null" },
+        { n: "tracking_number", k: "key", note: "უნიკალური" },
+        { n: "external_id", k: "", note: "მაღაზიის ნომერი" },
+        { n: "source", k: "", note: "api / manual" },
+        { n: "status", k: "key", note: "სტატუსი" },
+        { n: "pickup_point_id", k: "fk", to: "clients_pickuppoint", note: "null" },
+        { n: "pickup_address_id", k: "fk", to: "core_address" },
+        { n: "delivery_address_id", k: "fk", to: "core_address" },
+        { n: "origin_district_id", k: "fk", to: "network_district", note: "null" },
+        { n: "destination_district_id", k: "fk", to: "network_district", note: "null" },
+        { n: "destination_warehouse_id", k: "fk", to: "network_warehouse", note: "null" },
+        { n: "recipient_name", k: "", note: "" },
+        { n: "recipient_phone", k: "", note: "" },
+        { n: "recipient_email", k: "", note: "" },
+        { n: "description", k: "", note: "" },
+        { n: "weight_kg", k: "", note: "" },
+        { n: "dimensions_cm", k: "", note: "" },
+        { n: "declared_value", k: "", note: "" },
+        { n: "payment_type", k: "key", note: "prepaid / cod" },
+        { n: "cod_amount", k: "", note: "" },
+        { n: "shipping_fee", k: "key", note: "შენახული ჯამი" },
+        { n: "route_fee", k: "key", note: "მარშრუტი" },
+        { n: "home_fee", k: "key", note: "კარამდე" },
+        { n: "weight_fee", k: "key", note: "წონა" },
+        { n: "tariff_basis", k: "key", note: "რომელი წესი" },
+        { n: "home_delivery", k: "", note: "" },
+        { n: "service_level", k: "", note: "" },
+        { n: "pickup_window_start", k: "", note: "" },
+        { n: "pickup_window_end", k: "", note: "" },
+        { n: "is_fragile", k: "", note: "" },
+        { n: "notes", k: "", note: "" },
+        { n: "scheduled_pickup_at", k: "", note: "" },
+        { n: "scheduled_delivery_date", k: "", note: "" },
+        { n: "picked_up_at", k: "", note: "" },
+        { n: "delivered_at", k: "", note: "" },
+        { n: "proof_photo", k: "", note: "" },
+        { n: "proof_signature", k: "", note: "" },
+        { n: "recipient_pin", k: "", note: "" },
+        { n: "pod_method", k: "", note: "" },
+        { n: "received_by", k: "", note: "" },
+        { n: "failure_code", k: "", note: "" },
+        { n: "failure_reason", k: "", note: "" },
+        { n: "metadata", k: "", note: "json" }
+      ]},
+      { name: "shipments_shipmentevent", col: 2, fields: [
+        pk("bigint"), ...ts,
+        { n: "shipment_id", k: "fk", to: "shipments_shipment" },
+        { n: "kind", k: "", note: "" },
+        { n: "from_status", k: "", note: "" },
+        { n: "to_status", k: "", note: "" },
+        { n: "actor_id", k: "fk", to: "accounts_user", note: "null" },
+        { n: "note", k: "", note: "" },
+        { n: "latitude", k: "", note: "" },
+        { n: "longitude", k: "", note: "" },
+        { n: "is_public", k: "", note: "" },
+        { n: "data", k: "", note: "json" }
+      ]},
+      { name: "shipments_codledger", col: 2, fields: [
+        pk("bigint"), ...ts,
+        { n: "shipment_id", k: "o2o", to: "shipments_shipment" },
+        { n: "company_id", k: "fk", to: "companies_couriercompany" },
+        { n: "client_id", k: "fk", to: "clients_client" },
+        { n: "courier_id", k: "fk", to: "couriers_courierprofile" },
+        { n: "amount", k: "key", note: "ლარი" },
+        { n: "collected_at", k: "", note: "" },
+        { n: "settled_at", k: "key", note: "null სანამ არ ჩაბარდება" },
+        { n: "settled_by_id", k: "fk", to: "accounts_user", note: "null" }
+      ]},
+      { name: "notifications_notification", col: 2, fields: [
+        pk("bigint"), ...ts,
+        { n: "shipment_id", k: "fk", to: "shipments_shipment" },
+        { n: "channel", k: "key", note: "sms / email" },
+        { n: "recipient", k: "", note: "" },
+        { n: "template", k: "", note: "" },
+        { n: "body", k: "", note: "" },
+        { n: "status", k: "key", note: "queued / sent / failed" },
+        { n: "provider_message_id", k: "", note: "" },
+        { n: "error", k: "", note: "" },
+        { n: "attempts", k: "", note: "" },
+        { n: "sent_at", k: "", note: "" }
+      ]},
+      { name: "tracking_trackingtoken", col: 2, fields: [
+        pk("bigint"), ...ts,
+        { n: "shipment_id", k: "fk", to: "shipments_shipment" },
+        { n: "token_hash", k: "key", note: "ბმული არ ინახება" },
+        { n: "expires_at", k: "", note: "" },
+        { n: "revoked_at", k: "", note: "" },
+        { n: "access_count", k: "", note: "" },
+        { n: "last_accessed_at", k: "", note: "" },
+        { n: "sent_via", k: "", note: "" }
+      ]},
+      { name: "network_city", col: 3, fields: [
+        pk("bigint"),
+        { n: "name", k: "key", note: "უნიკალური" }
+      ]},
+      { name: "network_district", col: 3, fields: [
+        pk("bigint"),
+        { n: "city_id", k: "fk", to: "network_city" },
+        { n: "name", k: "key", note: "ქალაქის შიგნით უნიკალური" }
+      ]},
+      { name: "network_warehouse", col: 3, fields: [
+        pk("bigint"), ...ts,
+        { n: "company_id", k: "fk", to: "companies_couriercompany" },
+        { n: "name", k: "key", note: "სახელი" },
+        { n: "kind", k: "key", note: "city / district" },
+        { n: "city_id", k: "fk", to: "network_city" },
+        { n: "district_id", k: "fk", to: "network_district", note: "null თუ ქალაქისაა" },
+        { n: "address_id", k: "fk", to: "core_address" },
+        { n: "is_active", k: "", note: "" }
+      ]},
+      { name: "network_tariff", col: 3, fields: [
+        pk("bigint"), ...ts,
+        { n: "company_id", k: "fk", to: "companies_couriercompany" },
+        { n: "kind", k: "key", note: "standard / home / city / district" },
+        { n: "origin_city_id", k: "fk", to: "network_city", note: "null" },
+        { n: "destination_city_id", k: "fk", to: "network_city", note: "null" },
+        { n: "origin_district_id", k: "fk", to: "network_district", note: "null" },
+        { n: "destination_district_id", k: "fk", to: "network_district", note: "null" },
+        { n: "price", k: "key", note: "ლარი" },
+        { n: "is_active", k: "", note: "" }
+      ]},
+      { name: "network_weightband", col: 3, fields: [
+        pk("bigint"), ...ts,
+        { n: "company_id", k: "fk", to: "companies_couriercompany" },
+        { n: "min_kg", k: "key", note: "შედის" },
+        { n: "max_kg", k: "key", note: "არ შედის, null = ზემოთ" },
+        { n: "surcharge", k: "key", note: "ლარი" }
+      ]}
+    ];
+
+    const views = [
+      { name: "network_tariff_sheet", fields: ["id", "company_id", "kind", "price", "origin_city", "destination_city", "origin_district", "destination_district"] },
+      { name: "network_warehouse_sheet", fields: ["id", "company_id", "name", "kind", "city", "district", "is_active"] },
+      { name: "cod_open_sheet", fields: ["id", "tracking_number", "shop_name", "amount", "collected_at"] }
+    ];
+
+    function makeCard(table, overview) {
+      const el = document.createElement("table");
+      el.className = "card";
+      if (overview) {
+        el.id = "card-" + table.name;
+        el.dataset.col = String(table.col);
+      }
+      const cap = document.createElement("caption");
+      cap.textContent = table.name;
+      el.appendChild(cap);
+      for (const f of table.fields) {
+        const show = !overview || f.k === "pk" || f.k === "fk" || f.k === "o2o" || f.k === "key";
+        if (!show) continue;
+        const tr = document.createElement("tr");
+        if (f.k === "pk") tr.className = "pk";
+        if (f.k === "fk" || f.k === "o2o") tr.className = "fk";
+        if (overview && f.to) {
+          tr.dataset.to = f.to;
+          tr.dataset.kind = f.k;
+        }
+        const th = document.createElement("th");
+        th.textContent = f.n;
+        const td = document.createElement("td");
+        if (overview && f.to) {
+          const bits = [LABEL[f.to] || f.to];
+          if (f.k === "o2o") bits.push("1:1");
+          if (f.note) bits.push(f.note);
+          td.textContent = bits.join(" · ");
+        } else if (f.to) {
+          td.textContent = f.to + (f.note ? " · " + f.note : "");
+        } else {
+          td.textContent = f.note || "";
+        }
+        tr.append(th, td);
+        el.appendChild(tr);
+      }
+      return el;
+    }
+
+    const cols = document.getElementById("cols");
+    for (let c = 0; c < 4; c += 1) {
+      const col = document.createElement("div");
+      col.className = "col";
+      const h = document.createElement("h2");
+      h.textContent = GROUPS[c];
+      col.appendChild(h);
+      for (const table of tables.filter((t) => t.col === c)) col.appendChild(makeCard(table, true));
+      cols.appendChild(col);
+    }
+
+    const full = document.getElementById("full");
+    for (let c = 0; c < 4; c += 1) {
+      const wrap = document.createElement("div");
+      const h = document.createElement("h2");
+      h.textContent = GROUPS[c];
+      wrap.appendChild(h);
+      for (const table of tables.filter((t) => t.col === c)) wrap.appendChild(makeCard(table, false));
+      full.appendChild(wrap);
+    }
+
+    const viewsEl = document.getElementById("views");
+    for (const view of views) {
+      const el = document.createElement("table");
+      el.className = "card view";
+      const cap = document.createElement("caption");
+      cap.textContent = view.name;
+      el.appendChild(cap);
+      for (const name of view.fields) {
+        const tr = document.createElement("tr");
+        const th = document.createElement("th");
+        th.textContent = name;
+        tr.appendChild(th);
+        el.appendChild(tr);
+      }
+      viewsEl.appendChild(el);
+    }
+
+    const board = document.getElementById("board");
+    const shot = document.getElementById("shot");
+    const svg = document.getElementById("wires");
+    let fitted = false;
+
+    function rel(el) {
+      const b = board.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      return { x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height };
+    }
+
+    function draw() {
+      board.style.transform = "none";
+      shot.style.height = "auto";
+      shot.style.width = "auto";
+      const colEls = [...cols.children];
+      const colRects = colEls.map(rel);
+      const links = [...cols.querySelectorAll("tr[data-to]")].map((tr) => {
+        const from = tr.closest(".card");
+        const to = document.getElementById("card-" + tr.dataset.to);
+        return { tr, from, to, fc: +from.dataset.col, tc: +to.dataset.col };
+      }).filter((l) => l.to);
+
+      const buckets = new Map();
+      for (const link of links) {
+        const dist = Math.abs(link.fc - link.tc);
+        const key = dist === 0 ? "same-" + link.fc : dist === 1 ? "gap-" + Math.min(link.fc, link.tc) : "long";
+        if (!buckets.has(key)) buckets.set(key, []);
+        buckets.get(key).push(link);
+      }
+      for (const group of buckets.values()) {
+        group.sort((a, b) => rel(a.tr).y - rel(b.tr).y);
+        group.forEach((link, index) => { link.lane = index; });
+      }
+
+      const paths = [];
+      for (const link of links) {
+        const s = rel(link.tr);
+        const cap = link.to.querySelector("caption");
+        const t = rel(cap);
+        const sy = s.y + s.h / 2;
+        const ty = t.y + t.h / 2;
+        const dist = Math.abs(link.fc - link.tc);
+        let d;
+        if (dist === 0) {
+          const card = rel(link.from);
+          const target = rel(link.to);
+          const x = card.x + card.w + 10 + link.lane * 3;
+          d = "M " + (card.x + card.w) + " " + sy + " H " + x + " V " + ty + " H " + (target.x + target.w);
+        } else if (dist === 1) {
+          const left = Math.min(link.fc, link.tc);
+          const x = colRects[left].x + colRects[left].w + 46 + link.lane * 6;
+          const goingRight = link.tc > link.fc;
+          const x1 = goingRight ? s.x + s.w : s.x;
+          const x2 = goingRight ? t.x : t.x + t.w;
+          d = "M " + x1 + " " + sy + " H " + x + " V " + ty + " H " + x2;
+        } else {
+          const railY = 14 + link.lane * 10;
+          const goingRight = link.tc > link.fc;
+          const x1 = goingRight ? s.x + s.w : s.x;
+          const x2 = goingRight ? t.x : t.x + t.w;
+          const gx1 = goingRight
+            ? colRects[link.fc].x + colRects[link.fc].w + 28
+            : colRects[link.fc].x - 18 - (link.lane % 3) * 6;
+          const gx2 = goingRight
+            ? colRects[link.tc].x - 18 - (link.lane % 3) * 6
+            : colRects[link.tc].x + colRects[link.tc].w + 28;
+          d = "M " + x1 + " " + sy + " H " + gx1 + " V " + railY + " H " + gx2 + " V " + ty + " H " + x2;
+        }
+        paths.push(d);
+      }
+
+      const marker = '<defs><marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#8a4b08"></path></marker></defs>';
+      svg.innerHTML = marker + paths.map((d) => '<path d="' + d + '" fill="none" stroke="#8a4b08" stroke-width="1.2" marker-end="url(#ah)"></path>').join("");
+      if (fitted) applyFit();
+    }
+
+    function applyFit() {
+      const scale = Math.min(
+        (window.innerWidth - 12) / board.offsetWidth,
+        (window.innerHeight - 12) / board.offsetHeight
+      );
+      board.style.transformOrigin = "top left";
+      board.style.transform = "scale(" + scale + ")";
+      shot.style.height = (board.offsetHeight * scale) + "px";
+      shot.style.width = (board.offsetWidth * scale) + "px";
+    }
+
+    document.getElementById("fit").addEventListener("click", () => {
+      fitted = !fitted;
+      if (!fitted) {
+        board.style.transform = "none";
+        shot.style.height = "auto";
+        shot.style.width = "auto";
+        return;
+      }
+      applyFit();
+    });
+
+    draw();
+    window.addEventListener("resize", draw);
+  </script>
+</body>
+</html>

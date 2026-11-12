@@ -110,7 +110,7 @@ class GuestSendView(View):
         form = GuestSendForm(request.POST)
         if not form.is_valid():
             return render(request, self.template_name, {"form": form, "tracking_number": ""})
-        client = walk_in_client()
+        client = walk_in_client(form.cleaned_data.get("company"))
         if client is None:
             form.add_error(None, "მიწოდება ჯერ არ არის ხელმისაწვდომი. სცადეთ მოგვიანებით.")
             return render(request, self.template_name, {"form": form, "tracking_number": ""})
